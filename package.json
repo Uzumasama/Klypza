@@ -1,0 +1,9 @@
+{
+  "name": "klypza",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Responsive video-only social media downloader deployed on Cloudflare Workers",
+  "engines": {
+    "node": ">=20"
+  }
+}
