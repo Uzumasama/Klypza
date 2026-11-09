@@ -31,7 +31,8 @@ const PLAN_LIMITS = {
 function planLimits(plan){ return PLAN_LIMITS[String(plan||'free').toLowerCase()] || PLAN_LIMITS.free; }
 function utcDate(){ return new Date().toISOString().slice(0,10); }
 
-async function publicStats(env){if(!env.KLYPZA_DB)return json({users:0,downloads:0});const [u,d]=await Promise.all([env.KLYPZA_DB.prepare('SELECT COUNT(*) AS total FROM users').first(),env.KLYPZA_DB.prepare('SELECT COUNT(*) AS total FROM usage_events').first()]);return json({users:Number(u?.total||0),downloads:Number(d?.total||0)});}\nasync function accountRouter(request, env, url) {
+async function publicStats(env){if(!env.KLYPZA_DB)return json({users:0,downloads:0});const [u,d]=await Promise.all([env.KLYPZA_DB.prepare('SELECT COUNT(*) AS total FROM users').first(),env.KLYPZA_DB.prepare('SELECT COUNT(*) AS total FROM usage_events').first()]);return json({users:Number(u?.total||0),downloads:Number(d?.total||0)});}
+async function accountRouter(request, env, url) {
   const path = url.pathname;
   if (!env.KLYPZA_DB) return json({error:'database_unavailable',message:'Account storage is not configured.'},503);
   if (path === '/api/auth/register' && request.method === 'POST') return registerAccount(request,env);
@@ -186,7 +187,7 @@ export default {
       return new Response(INDEX_HTML,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-cache'}});
     }
     if (url.pathname === '/klypza-mark.svg') return new Response('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#08d5ee"/><stop offset=".52" stop-color="#0877f5"/><stop offset="1" stop-color="#a800ed"/></linearGradient></defs><path d="M18 7C18 3 23 1 27 3l29 17c9 5 9 19 0 24L27 61c-4 2-9 0-9-5V7Z" fill="url(#g)"/><path d="M25 16c0-4 4-6 8-4l18 11c5 3 5 10 0 13L33 47c-4 2-8 0-8-4V16Z" fill="#111936"/><path d="M35 16v16h-7l11 12 11-12h-7V16z" fill="#fff"/><path d="M3 18h10M0 28h13M5 38h8" stroke="url(#g)" stroke-width="5" stroke-linecap="round"/></svg>',{headers:{'content-type':'image/svg+xml','cache-control':'public,max-age=86400'}});
-    if (url.pathname === '/robots.txt') return new Response('User-agent: *\\nAllow: /\\nDisallow: /login\\nDisallow: /register\\nDisallow: /dashboard\\nSitemap: https://klypza-app.cokso344.workers.dev/sitemap.xml\\n',{headers:{'content-type':'text/plain; charset=utf-8'}});
+    if (url.pathname === '/robots.txt') return new Response('User-agent: *\nAllow: /\nDisallow: /login\nDisallow: /register\nDisallow: /dashboard\nSitemap: https://klypza-app.cokso344.workers.dev/sitemap.xml\n',{headers:{'content-type':'text/plain; charset=utf-8'}});
     if (url.pathname === '/sitemap.xml') return new Response('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://klypza-app.cokso344.workers.dev/</loc></url><url><loc>https://klypza-app.cokso344.workers.dev/plans</loc></url></urlset>',{headers:{'content-type':'application/xml; charset=utf-8'}});
     if (url.pathname === '/api/public-stats' && request.method === 'GET') return await publicStats(env);
     if (url.pathname.startsWith('/api/auth/') || url.pathname === '/api/account' || url.pathname === '/api/plans' || url.pathname === '/api/batch/start') {
