@@ -192,7 +192,7 @@ body{background:#f8f9ff;color:#111936}.site-header{background:rgba(255,255,255,.
   </div>
 </header>
 
-<section class="hero public-hero"><div class="container public-hero-grid"><div class="public-hero-copy"><span class="eyebrow"><i class="fa-solid fa-cloud-arrow-down"></i> ⚡ All-in-One Media Downloader</span><h1>Download videos from your favorite platforms <span class="accent">in one place.</span></h1><p class="hero-copy">Klypza helps you download supported public social media videos quickly, safely, and in high quality. Simple, fast, and reliable.</p><div class="hero-actions"><a class="hero-primary" href="/register">Get started free <i class="fa-solid fa-arrow-right"></i></a><a class="hero-secondary" href="/plans">Explore plans</a></div><div class="hero-benefits"><span><i class="fa-solid fa-check"></i> Safe &amp; Secure</span><span><i class="fa-solid fa-bolt"></i> Fast Processing</span><span><i class="fa-solid fa-infinity"></i> Quality options</span></div><div class="platform-pills"><span class="platform-pill"><i class="fa-brands fa-tiktok"></i> TikTok</span><span class="platform-pill"><i class="fa-brands fa-instagram"></i> Instagram</span><span class="platform-pill"><i class="fa-brands fa-facebook"></i> Facebook</span><span class="platform-pill"><i class="fa-brands fa-youtube"></i> YouTube</span><span class="platform-pill"><i class="fa-brands fa-pinterest-p"></i> Pinterest</span></div></div><div class="hero-visual"><div class="visual-window"><div class="visual-brand"><img src="/brand-icon.webp" alt="Klypza download logo" width="116" height="82"><strong>Klypza</strong></div><div class="visual-progress"><span></span></div><div class="visual-download"><i class="fa-solid fa-download"></i></div><p>Your videos. One simple place.</p></div><span class="float-platform youtube"><i class="fa-brands fa-youtube"></i></span><span class="float-platform tiktok"><i class="fa-brands fa-tiktok"></i></span><span class="float-platform instagram"><i class="fa-brands fa-instagram"></i></span><span class="float-platform facebook"><i class="fa-brands fa-facebook-f"></i></span><span class="float-platform pinterest"><i class="fa-brands fa-pinterest-p"></i></span></div></div></section>
+<section class="hero public-hero"><div class="container public-hero-grid"><div class="public-hero-copy"><span class="eyebrow"><i class="fa-solid fa-cloud-arrow-down"></i> ⚡ All-in-One Media Downloader</span><h1>Download videos from your favorite platforms <span class="accent">in one place.</span></h1><p class="hero-copy">Klypza helps you download supported public social media videos quickly, safely, and in high quality. Simple, fast, and reliable.</p><div class="hero-actions"><a class="hero-primary" href="/register">Get started free <i class="fa-solid fa-arrow-right"></i></a><a class="hero-secondary" href="/plans">Explore plans</a></div><div class="hero-benefits"><span><i class="fa-solid fa-check"></i> Safe &amp; Secure</span><span><i class="fa-solid fa-bolt"></i> Fast Processing</span><span><i class="fa-solid fa-infinity"></i> Quality options</span></div><div class="platform-pills"><span class="platform-pill"><i class="fa-brands fa-tiktok"></i> TikTok</span><span class="platform-pill"><i class="fa-brands fa-instagram"></i> Instagram</span><span class="platform-pill"><i class="fa-brands fa-facebook"></i> Facebook</span><span class="platform-pill"><i class="fa-brands fa-youtube"></i> YouTube</span><span class="platform-pill"><i class="fa-brands fa-pinterest-p"></i> Pinterest</span></div></div><div class="hero-visual"><div class="visual-window"><div class="visual-brand"><img src="/footer-wordmark-white.svg" alt="Klypza" width="260" height="72"></div><div class="visual-progress"><span></span></div><div class="visual-download"><i class="fa-solid fa-download"></i></div><p>Your videos. One simple place.</p></div><span class="float-platform youtube"><i class="fa-brands fa-youtube"></i></span><span class="float-platform tiktok"><i class="fa-brands fa-tiktok"></i></span><span class="float-platform instagram"><i class="fa-brands fa-instagram"></i></span><span class="float-platform facebook"><i class="fa-brands fa-facebook-f"></i></span><span class="float-platform pinterest"><i class="fa-brands fa-pinterest-p"></i></span></div></div></section>
 
 <main class="public-main">
   <div class="container">
@@ -804,3 +804,26 @@ body{background:#f8f9ff;color:#111936}.site-header{background:rgba(255,255,255,.
 </script>
 </body>
 </html>
+
+
+/* Refined Klypza wordmark and hero composition */
+.visual-brand{width:min(78%,300px);justify-content:center;position:relative;z-index:4}
+.visual-brand img{display:block;width:100%;height:auto;max-height:none;object-fit:contain}
+.visual-window{position:relative;z-index:2;padding:22px 18px;box-sizing:border-box}
+.visual-window p{position:relative;z-index:5;text-align:center;width:100%;max-width:85%;margin:22px auto 0;line-height:1.35;font-size:clamp(.82rem,1.8vw,1rem);white-space:normal}
+.visual-progress{position:relative;z-index:3;margin-top:25px}
+.visual-download{z-index:4;right:7%;bottom:26%;width:48px;height:48px;border-radius:50%;box-shadow:0 8px 24px #17114a35}
+.float-platform{z-index:1}
+.float-platform.youtube{top:1%;left:4%}
+.float-platform.tiktok{top:0;right:4%}
+.float-platform.instagram{bottom:4%;left:2%}
+.float-platform.facebook{bottom:2%;right:5%}
+.float-platform.pinterest{top:37%;right:-1%}
+@media(max-width:650px){
+ .visual-brand{width:76%;max-width:250px}
+ .visual-window{padding:18px 14px}
+ .visual-window p{max-width:78%;font-size:.78rem;margin-top:17px}
+ .visual-progress{margin-top:20px}
+ .visual-download{right:5%;bottom:28%;width:42px;height:42px}
+ .float-platform.pinterest{top:32%;right:-2%}
+}
