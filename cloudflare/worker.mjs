@@ -286,7 +286,7 @@ async function handleDownload(url, env, request) {
   }
 
   // YouTube uses SaveAPI's dedicated info -> create flow.
-  if (platform === 'YouTube') return await handleYouTubeInfo(parsed, env, user);
+  if (platform === 'YouTube') return await handleYouTubeInfo(parsed, env, user, batchId);
 
   const api = new URL('https://api.saveapi.org/v1/download');
   api.searchParams.set('url', parsed.href);
@@ -369,7 +369,7 @@ async function handleDownload(url, env, request) {
   return json({ platform, title: result.title, author: result.author, items, credits_remaining: Math.max(0,planLimits(user.plan).daily-Number((await env.KLYPZA_DB.prepare('SELECT COUNT(*) AS used FROM usage_events WHERE user_id=? AND usage_date=?').bind(user.id,utcDate()).first())?.used||0)) });
 }
 
-async function handleYouTubeInfo(parsed, env, user) {
+async function handleYouTubeInfo(parsed, env, user, batchId) {
   const api = new URL('https://api.saveapi.org/v1/youtube/info');
   api.searchParams.set('url', parsed.href);
   let res;
