@@ -716,7 +716,7 @@ main{padding-bottom:42px}
 
   // ---------- Klypza accounts ----------
   (function accountApp(){
-    var path = location.pathname.replace(/\\/+$/, '') || '/';
+    var path = location.pathname.endsWith('/') && location.pathname !== '/' ? location.pathname.slice(0,-1) : location.pathname;
     var panel = $('accountPanel'), authCard = $('authCard'), dash = $('dashboardCard'), plans = $('plansCard');
     if (!panel) return;
     var view = path === '/register' ? 'register' : path === '/login' ? 'login' : path === '/dashboard' ? 'dashboard' : path === '/plans' ? 'plans' : 'home';
