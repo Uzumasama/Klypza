@@ -20,12 +20,125 @@ const AUD_EXT = /\.(mp3|m4a|aac|wav|ogg)(\?|#|$)/i;
 
 const enc = new TextEncoder();
 
+const SESSION_COOKIE = 'klypza_session';
+const SESSION_DAYS = 30;
+const FREE_START_CREDITS = 10;
+
+async function accountRouter(request, env, url) {
+  const path = url.pathname;
+  if (!env.KLYPZA_DB) return json({error:'database_unavailable',message:'Account storage is not configured.'},503);
+  if (path === '/api/auth/register' && request.method === 'POST') return registerAccount(request,env);
+  if (path === '/api/auth/login' && request.method === 'POST') return loginAccount(request,env);
+  if (path === '/api/auth/logout' && request.method === 'POST') return logoutAccount(request,env);
+  if (path === '/api/auth/me' && request.method === 'GET') {
+    const user=await getSessionUser(request,env);
+    return user?json({authenticated:true,user:publicUser(user)}):json({authenticated:false},401);
+  }
+  if (path === '/api/account' && request.method === 'GET') return accountOverview(request,env);
+  if (path === '/api/plans' && request.method === 'GET') return json({plans:[
+    {id:'free',name:'Free',price:null,credits:FREE_START_CREDITS,available:true},
+    {id:'starter',name:'Starter',price:null,credits:null,available:false},
+    {id:'pro',name:'Pro',price:null,credits:null,available:false}
+  ]});
+  return null;
+}
+function publicUser(u){return {id:u.id,email:u.email,name:u.display_name,credits:Number(u.credits),plan:u.plan};}
+async function readJson(request){
+  try { const data=await request.json(); return data&&typeof data==='object'?data:null; } catch { return null; }
+}
+function cookieToken(request){
+  const raw=request.headers.get('Cookie')||'';
+  const found=raw.split(';').map(x=>x.trim()).find(x=>x.startsWith(SESSION_COOKIE+'='));
+  return found?decodeURIComponent(found.slice(SESSION_COOKIE.length+1)):'';
+}
+function randomToken(){
+  const bytes=crypto.getRandomValues(new Uint8Array(32));
+  return btoa(String.fromCharCode(...bytes)).replace(/\\+/g,'-').replace(/\\//g,'_').replace(/=+$/,'');
+}
+async function sha256(value){
+  const digest=await crypto.subtle.digest('SHA-256',enc.encode(value));
+  return [...new Uint8Array(digest)].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+async function passwordHash(password,salt){
+  const key=await crypto.subtle.importKey('raw',enc.encode(password),'PBKDF2',false,['deriveBits']);
+  const bits=await crypto.subtle.deriveBits({name:'PBKDF2',salt:enc.encode(salt),iterations:160000,hash:'SHA-256'},key,256);
+  return [...new Uint8Array(bits)].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+async function createSession(userId,env){
+  const token=randomToken(), tokenHash=await sha256(token);
+  const expires=new Date(Date.now()+SESSION_DAYS*86400000).toISOString();
+  await env.KLYPZA_DB.prepare('INSERT INTO sessions(token_hash,user_id,expires_at) VALUES(?,?,?)').bind(tokenHash,userId,expires).run();
+  return 'klypza_session='+encodeURIComponent(token)+'; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age='+(SESSION_DAYS*86400);
+}
+async function getSessionUser(request,env){
+  const token=cookieToken(request); if(!token||!env.KLYPZA_DB)return null;
+  const tokenHash=await sha256(token);
+  return await env.KLYPZA_DB.prepare('SELECT u.id,u.email,u.display_name,u.credits,u.plan FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?').bind(tokenHash,new Date().toISOString()).first();
+}
+async function registerAccount(request,env){
+  const origin=request.headers.get('Origin'); if(origin&&origin!==new URL(request.url).origin)return json({message:'Request origin rejected.'},403);
+  const data=await readJson(request); const email=String(data?.email||'').trim().toLowerCase();
+  const password=String(data?.password||''); const name=String(data?.name||'').trim().slice(0,60);
+  if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)||email.length>190)return json({message:'Enter a valid email address.'},400);
+  if(password.length<10||password.length>128)return json({message:'Password must contain 10–128 characters.'},400);
+  const existing=await env.KLYPZA_DB.prepare('SELECT id FROM users WHERE email=?').bind(email).first();
+  if(existing)return json({message:'An account with this email already exists. Log in instead.'},409);
+  const id=crypto.randomUUID(),salt=randomToken(),hash=await passwordHash(password,salt);
+  await env.KLYPZA_DB.prepare('INSERT INTO users(id,email,display_name,password_hash,password_salt,credits,plan) VALUES(?,?,?,?,?,?,?)').bind(id,email,name,hash,salt,FREE_START_CREDITS,'free').run();
+  await env.KLYPZA_DB.prepare('INSERT INTO credit_transactions(id,user_id,amount,balance_after,reason) VALUES(?,?,?,?,?)').bind(crypto.randomUUID(),id,FREE_START_CREDITS,FREE_START_CREDITS,'welcome_credits').run();
+  const cookie=await createSession(id,env);
+  return json({ok:true,user:{id,email,name,credits:FREE_START_CREDITS,plan:'free'}},201,{'set-cookie':cookie});
+}
+async function loginAccount(request,env){
+  const origin=request.headers.get('Origin'); if(origin&&origin!==new URL(request.url).origin)return json({message:'Request origin rejected.'},403);
+  const data=await readJson(request); const email=String(data?.email||'').trim().toLowerCase(); const password=String(data?.password||'');
+  if(!email||!password)return json({message:'Enter your email and password.'},400);
+  const user=await env.KLYPZA_DB.prepare('SELECT id,email,display_name,password_hash,password_salt,credits,plan FROM users WHERE email=?').bind(email).first();
+  if(!user)return json({message:'Email or password is incorrect.'},401);
+  const actual=await passwordHash(password,user.password_salt);
+  if(actual!==user.password_hash)return json({message:'Email or password is incorrect.'},401);
+  const cookie=await createSession(user.id,env);
+  return json({ok:true,user:publicUser(user)},200,{'set-cookie':cookie});
+}
+async function logoutAccount(request,env){
+  const token=cookieToken(request);
+  if(token){await env.KLYPZA_DB.prepare('DELETE FROM sessions WHERE token_hash=?').bind(await sha256(token)).run();}
+  return json({ok:true},200,{'set-cookie':SESSION_COOKIE+'=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0'});
+}
+async function accountOverview(request,env){
+  const user=await getSessionUser(request,env); if(!user)return json({message:'Please log in to view your dashboard.'},401);
+  const [downloads,transactions,subscription]=await Promise.all([
+    env.KLYPZA_DB.prepare('SELECT platform,title,credits_used,status,created_at FROM downloads WHERE user_id=? ORDER BY created_at DESC LIMIT 20').bind(user.id).all(),
+    env.KLYPZA_DB.prepare('SELECT amount,balance_after,reason,created_at FROM credit_transactions WHERE user_id=? ORDER BY created_at DESC LIMIT 30').bind(user.id).all(),
+    env.KLYPZA_DB.prepare("SELECT plan,status,current_period_end FROM subscriptions WHERE user_id=? ORDER BY created_at DESC LIMIT 1").bind(user.id).first()
+  ]);
+  return json({user:publicUser(user),downloads:downloads.results||[],transactions:transactions.results||[],subscription:subscription||null});
+}
+async function chargeDownloadCredit(user,env,platform,sourceUrl,title){
+  const update=await env.KLYPZA_DB.prepare('UPDATE users SET credits=credits-1,updated_at=CURRENT_TIMESTAMP WHERE id=? AND credits>=1').bind(user.id).run();
+  if(!update.meta||update.meta.changes!==1)return false;
+  const fresh=await env.KLYPZA_DB.prepare('SELECT credits FROM users WHERE id=?').bind(user.id).first();
+  const balance=Number(fresh?.credits||0);
+  await env.KLYPZA_DB.prepare('INSERT INTO credit_transactions(id,user_id,amount,balance_after,reason,reference_id) VALUES(?,?,?,?,?,?)').bind(crypto.randomUUID(),user.id,-1,balance,'video_download',null).run();
+  await env.KLYPZA_DB.prepare('INSERT INTO downloads(id,user_id,platform,source_url,title,credits_used,status) VALUES(?,?,?,?,?,?,?)').bind(crypto.randomUUID(),user.id,platform,sourceUrl,String(title||'').slice(0,200),1,'completed').run();
+  return true;
+}
+
+
 export default {
   async fetch(request, env) {
   const url = new URL(request.url);
   try {
+    if (url.pathname === '/' || ['/login','/register','/dashboard','/plans'].includes(url.pathname)) {
+      return new Response(INDEX_HTML,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-cache'}});
+    }
+    if (url.pathname === '/klypza-mark.svg') return new Response('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="g" x2="1" y2="1"><stop stop-color="#2878f0"/><stop offset="1" stop-color="#7928ca"/></linearGradient></defs><rect width="64" height="64" rx="18" fill="#111936"/><path d="M17 15h9v20l15-14h12L36 35l18 15H42L26 37v13h-9z" fill="url(#g)"/></svg>',{headers:{'content-type':'image/svg+xml','cache-control':'public,max-age=86400'}});
+    }
+    if (url.pathname.startsWith('/api/auth/') || url.pathname === '/api/account' || url.pathname === '/api/plans') {
+      const response=await accountRouter(request,env,url); if(response)return response;
+    }
     if (url.pathname === '/api/health') return health(env);
-    if (url.pathname === '/api/download') return await handleDownload(url, env);
+    if (url.pathname === '/api/download') return await handleDownload(url, env, request);
     if (url.pathname === '/api/file') return await handleFile(url, env);
     if (env.ASSETS) return env.ASSETS.fetch(request);
   } catch (err) {
@@ -88,7 +201,10 @@ function isProfileLink(platform, u) {
   }
 }
 
-async function handleDownload(url, env) {
+async function handleDownload(url, env, request) {
+  const user=await getSessionUser(request,env);
+  if(!user)return json({error:'login_required',message:'Create a free account or log in to use Klypza downloads.'},401);
+  if(Number(user.credits)<1)return json({error:'insufficient_credits',message:'You have no credits left. View plans to get more credits.'},402);
   if (!env.SAVEAPI_KEY) {
     return json({
       error: 'not_configured',
@@ -115,7 +231,7 @@ async function handleDownload(url, env) {
   }
 
   // YouTube uses SaveAPI's dedicated info -> create flow.
-  if (platform === 'YouTube') return await handleYouTubeInfo(parsed, env);
+  if (platform === 'YouTube') return await handleYouTubeInfo(parsed, env, user);
 
   const api = new URL('https://api.saveapi.org/v1/download');
   api.searchParams.set('url', parsed.href);
@@ -193,10 +309,12 @@ async function handleDownload(url, env) {
       file,
     });
   }
-  return json({ platform, title: result.title, author: result.author, items });
+  const charged=await chargeDownloadCredit(user,env,platform,parsed.href,result.title);
+  if(!charged)return json({error:'insufficient_credits',message:'You have no credits left. Please view plans.'},402);
+  return json({ platform, title: result.title, author: result.author, items, credits_remaining: Math.max(0,Number(user.credits)-1) });
 }
 
-async function handleYouTubeInfo(parsed, env) {
+async function handleYouTubeInfo(parsed, env, user) {
   const api = new URL('https://api.saveapi.org/v1/youtube/info');
   api.searchParams.set('url', parsed.href);
   let res;
@@ -257,7 +375,9 @@ async function handleYouTubeInfo(parsed, env) {
   }
   if (!items.length) return json({ error: 'no_video', message: 'No supported YouTube video qualities were found.' }, 422);
   items.sort((a, b) => parseInt(b.quality, 10) - parseInt(a.quality, 10));
-  return json({ platform: 'YouTube', title, author, items });
+  const charged=await chargeDownloadCredit(user,env,'YouTube',parsed.href,title);
+  if(!charged)return json({error:'insufficient_credits',message:'You have no credits left. Please view plans.'},402);
+  return json({ platform: 'YouTube', title, author, items, credits_remaining: Math.max(0,Number(user.credits)-1) });
 }
 
 function saveApiError(data, upstreamStatus, retryAfter = null) {
