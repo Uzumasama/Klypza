@@ -208,11 +208,21 @@ export default {
       return new Response(asset.body, { headers: { 'content-type': 'image/webp', 'cache-control': 'public,max-age=86400' } });
     }
     if (url.pathname === '/hero-wordmark.svg') return new Response(`<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="520" height="112" viewBox="0 0 520 112" role="img" aria-labelledby="title desc">
-<title id="title">Klypza</title><desc id="desc">Klypza wordmark in Manrope style with a cyan to violet accent on the K</desc>
-<defs><linearGradient id="k" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#08d5ee"/><stop offset=".48" stop-color="#0877f5"/><stop offset="1" stop-color="#a800ed"/></linearGradient></defs>
-<text x="10" y="86" font-family="Manrope,Arial,sans-serif" font-size="94" font-weight="800" letter-spacing="-7" fill="url(#k)">K</text>
-<text x="76" y="86" font-family="Manrope,Arial,sans-serif" font-size="94" font-weight="800" letter-spacing="-7" fill="#fff">lypza</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="620" height="124" viewBox="0 0 620 124" role="img" aria-labelledby="title desc">
+<title id="title">Klypza</title>
+<desc id="desc">Klypza white wordmark with its original blue violet download icon and a purple accent on the K</desc>
+<defs>
+ <linearGradient id="downloadMark" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#08d5ee"/><stop offset=".48" stop-color="#0877f5"/><stop offset="1" stop-color="#a800ed"/></linearGradient>
+ <linearGradient id="kAccent" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#168bfa"/><stop offset="1" stop-color="#a52be9"/></linearGradient>
+</defs>
+<g transform="translate(3 7)">
+ <path d="M9 37H31 M3 57H31 M10 77H31" fill="none" stroke="url(#downloadMark)" stroke-width="8" stroke-linecap="round"/>
+ <path d="M43 12C43 2 54 -4 63 2L111 34C129 46 129 69 111 81L63 113C54 119 43 113 43 103Z" fill="url(#downloadMark)"/>
+ <path d="M57 29C57 23 64 20 70 24L99 43C109 50 109 64 99 71L70 90C64 94 57 91 57 84Z" fill="#10204f"/>
+ <path d="M78 37V62H67L84 81L101 62H90V37Z" fill="#fff"/>
+</g>
+<text x="145" y="96" font-family="Manrope,Arial,sans-serif" font-size="96" font-weight="800" letter-spacing="-6" fill="url(#kAccent)">K</text>
+<text x="210" y="96" font-family="Manrope,Arial,sans-serif" font-size="96" font-weight="800" letter-spacing="-6" fill="#fff">lypza</text>
 </svg>`,{headers:{'content-type':'image/svg+xml; charset=utf-8','cache-control':'public,max-age=3600'}});
     if (url.pathname === '/footer-wordmark-white.svg') return new Response(`<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="520" height="112" viewBox="0 0 520 112" role="img" aria-labelledby="title desc">
