@@ -53,7 +53,7 @@ function cookieToken(request){
 }
 function randomToken(){
   const bytes=crypto.getRandomValues(new Uint8Array(32));
-  return btoa(String.fromCharCode(...bytes)).replace(/\\+/g,'-').replace(/\\//g,'_').replace(/=+$/,'');
+  return btoa(String.fromCharCode(...bytes)).replaceAll('+','-').replaceAll('/','_').replace(/=+$/,'');
 }
 async function sha256(value){
   const digest=await crypto.subtle.digest('SHA-256',enc.encode(value));
@@ -79,7 +79,7 @@ async function registerAccount(request,env){
   const origin=request.headers.get('Origin'); if(origin&&origin!==new URL(request.url).origin)return json({message:'Request origin rejected.'},403);
   const data=await readJson(request); const email=String(data?.email||'').trim().toLowerCase();
   const password=String(data?.password||''); const name=String(data?.name||'').trim().slice(0,60);
-  if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)||email.length>190)return json({message:'Enter a valid email address.'},400);
+  if(!email || email.length>190 || /\\s/.test(email) || !email.includes('@') || email.lastIndexOf('.')<email.indexOf('@')+2)return json({message:'Enter a valid email address.'},400);
   if(password.length<10||password.length>128)return json({message:'Password must contain 10–128 characters.'},400);
   const existing=await env.KLYPZA_DB.prepare('SELECT id FROM users WHERE email=?').bind(email).first();
   if(existing)return json({message:'An account with this email already exists. Log in instead.'},409);
