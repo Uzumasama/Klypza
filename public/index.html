@@ -716,6 +716,7 @@ main{padding-bottom:42px}
 
   // ---------- Klypza accounts ----------
   (function accountApp(){
+    var $ = function(id){ return document.getElementById(id); };
     var path = location.pathname.endsWith('/') && location.pathname !== '/' ? location.pathname.slice(0,-1) : location.pathname;
     var panel = $('accountPanel'), authCard = $('authCard'), dash = $('dashboardCard'), plans = $('plansCard');
     if (!panel) return;
