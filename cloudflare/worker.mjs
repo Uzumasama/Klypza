@@ -61,7 +61,7 @@ async function sha256(value){
 }
 async function passwordHash(password,salt){
   const key=await crypto.subtle.importKey('raw',enc.encode(password),'PBKDF2',false,['deriveBits']);
-  const bits=await crypto.subtle.deriveBits({name:'PBKDF2',salt:enc.encode(salt),iterations:160000,hash:'SHA-256'},key,256);
+  const bits=await crypto.subtle.deriveBits({name:'PBKDF2',salt:enc.encode(salt),iterations:100000,hash:'SHA-256'},key,256);
   return [...new Uint8Array(bits)].map(x=>x.toString(16).padStart(2,'0')).join('');
 }
 async function createSession(userId,env){
@@ -141,8 +141,8 @@ export default {
     if (url.pathname === '/api/file') return await handleFile(url, env);
     if (env.ASSETS) return env.ASSETS.fetch(request);
   } catch (err) {
-    console.error('KLYPZA_ACCOUNT_DEBUG', err && err.stack ? err.stack : String(err));
-    return json({ error: 'server_error', message: String(err && err.message ? err.message : err).slice(0,240) }, 500);
+    console.error('KLYPZA_WORKER_ERROR', err && err.stack ? err.stack : String(err));
+    return json({ error: 'server_error', message: 'Something went wrong on the server. Please try again shortly.' }, 500);
   }
   return json({ error: 'not_found' }, 404);
   },
