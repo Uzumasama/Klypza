@@ -141,7 +141,8 @@ export default {
     if (url.pathname === '/api/file') return await handleFile(url, env);
     if (env.ASSETS) return env.ASSETS.fetch(request);
   } catch (err) {
-    return json({ error: 'server_error', message: 'Something went wrong on the server. Please try again shortly.' }, 500);
+    console.error('KLYPZA_ACCOUNT_DEBUG', err && err.stack ? err.stack : String(err));
+    return json({ error: 'server_error', message: String(err && err.message ? err.message : err).slice(0,240) }, 500);
   }
   return json({ error: 'not_found' }, 404);
   },
