@@ -1,6 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Klypza">
-  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2878f0"/><stop offset="1" stop-color="#7928ca"/></linearGradient></defs>
-  <rect width="64" height="64" rx="16" fill="#111936"/>
-  <path d="M18 13v38M20 32 46 13M20 32l26 19" fill="none" stroke="url(#g)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M35 32h15m-7-7 7 7-7 7" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Klypza download logo">
+<defs><linearGradient id="brand" x1="12" y1="12" x2="88" y2="88" gradientUnits="userSpaceOnUse"><stop stop-color="#08D5EE"/><stop offset=".48" stop-color="#0877F5"/><stop offset="1" stop-color="#A800ED"/></linearGradient></defs>
+<path d="M5 31h19M1 48h22M7 65h17" fill="none" stroke="url(#brand)" stroke-width="6" stroke-linecap="round"/>
+<path d="M31 13c0-8 9-13 16-9l44 29c12 8 12 26 0 34L47 96c-7 5-16 0-16-9V13Z" fill="url(#brand)"/>
+<path d="M42 25c0-5 6-8 11-5l30 20c7 5 7 15 0 20L53 80c-5 3-11 0-11-6V25Z" fill="#10204F" opacity=".96"/>
+<path d="M60 29v24h-9l16 18 16-18h-9V29H60Z" fill="#fff"/>
 </svg>
