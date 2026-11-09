@@ -79,7 +79,7 @@ async function registerAccount(request,env){
   const origin=request.headers.get('Origin'); if(origin&&origin!==new URL(request.url).origin)return json({message:'Request origin rejected.'},403);
   const data=await readJson(request); const email=String(data?.email||'').trim().toLowerCase();
   const password=String(data?.password||''); const name=String(data?.name||'').trim().slice(0,60);
-  if(!email || email.length>190 || /\\s/.test(email) || !email.includes('@') || email.lastIndexOf('.')<email.indexOf('@')+2)return json({message:'Enter a valid email address.'},400);
+  if(!email || email.length>190 || email.includes(' ') || !email.includes('@') || email.lastIndexOf('.')<email.indexOf('@')+2)return json({message:'Enter a valid email address.'},400);
   if(password.length<10||password.length>128)return json({message:'Password must contain 10–128 characters.'},400);
   const existing=await env.KLYPZA_DB.prepare('SELECT id FROM users WHERE email=?').bind(email).first();
   if(existing)return json({message:'An account with this email already exists. Log in instead.'},409);
@@ -133,7 +133,6 @@ export default {
       return new Response(INDEX_HTML,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-cache'}});
     }
     if (url.pathname === '/klypza-mark.svg') return new Response('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="g" x2="1" y2="1"><stop stop-color="#2878f0"/><stop offset="1" stop-color="#7928ca"/></linearGradient></defs><rect width="64" height="64" rx="18" fill="#111936"/><path d="M17 15h9v20l15-14h12L36 35l18 15H42L26 37v13h-9z" fill="url(#g)"/></svg>',{headers:{'content-type':'image/svg+xml','cache-control':'public,max-age=86400'}});
-    }
     if (url.pathname.startsWith('/api/auth/') || url.pathname === '/api/account' || url.pathname === '/api/plans') {
       const response=await accountRouter(request,env,url); if(response)return response;
     }
