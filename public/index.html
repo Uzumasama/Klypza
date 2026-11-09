@@ -136,6 +136,7 @@ main{padding-bottom:42px}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 @media(max-width:760px){.nav-wrap{padding:14px 18px}.nav-links{gap:14px}.nav-links a:not(.nav-cta){display:none}.nav-links a[href='/login']{display:inline-block}.hero{padding:48px 0 30px}.container{width:min(100% - 28px,1160px)}.platform-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.platform-btn{min-height:74px}.steps-grid,.benefit-grid{grid-template-columns:1fr}.platform-info-grid{grid-template-columns:1fr}.ad-slot{margin:18px auto;min-height:76px}.content-section,.tool-card{border-radius:20px}}
 @media(max-width:430px){.container{width:calc(100% - 20px)}.logo{font-size:1rem}.logo-mark{width:34px;height:34px;flex-basis:34px}.nav-cta{padding:8px 11px;font-size:.82rem}.hero h1{font-size:2.25rem}.hero-copy{font-size:.96rem}.platform-pills{gap:7px}.platform-pill{font-size:.76rem;padding:7px 9px}.tool-card,.content-section{padding:19px}.platform-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.platform-btn:last-child{grid-column:span 2}.input-hint{font-size:.78rem}.options-row{align-items:flex-start}.select-wrap{width:100%;justify-content:space-between}.item-row{flex-wrap:wrap}.item-meta{min-width:calc(100% - 80px)}.item-row .btn-download{width:100%}.batch-header{align-items:flex-start;flex-direction:column}.footer-links{gap:12px 15px}}
+.pricing-grid{align-items:stretch}.pricing-card{display:flex;flex-direction:column;gap:8px}.pricing-card h3{font-size:1.25rem;margin:8px 0 0}.plan-price{font-family:Manrope,sans-serif;font-size:2.2rem;font-weight:800;letter-spacing:-.05em}.plan-price small{font-family:"DM Sans",sans-serif;font-size:.85rem;font-weight:500;letter-spacing:0;color:#64708a}.plan-tag{font-size:.86rem;color:#64708a!important}.pricing-card ul{list-style:none;display:grid;gap:9px;padding:10px 0 18px;flex:1}.pricing-card li{font-size:.9rem;color:#3b465c;padding-left:23px;position:relative}.pricing-card li:before{content:"✓";position:absolute;left:0;color:#2878f0;font-weight:900}.pricing-card .btn-download{width:100%;margin-top:auto}.premium-card{border-color:#bba3e8;box-shadow:0 10px 30px rgba(121,40,202,.08)}.plan-disabled{opacity:.65;cursor:not-allowed}
 #accountPanel input:focus{outline:3px solid rgba(40,120,240,.18);border-color:#2878f0}
 #accountPanel .steps-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
 @media(max-width:760px){#accountPanel .steps-grid{grid-template-columns:1fr}}
@@ -291,25 +292,26 @@ main{padding-bottom:42px}
       <button id="logoutButton" type="button" class="btn-download">Log out</button>
     </div>
     <div class="steps-grid" style="margin-top:24px">
-      <article class="info-card"><div class="section-kicker">Available credits</div><h2 id="dashCredits" style="font-size:2.2rem;margin:4px 0">—</h2><p>One credit is used for each successful video link.</p></article>
-      <article class="info-card"><div class="section-kicker">Current plan</div><h2 id="dashPlan" style="font-size:1.7rem;margin:4px 0">Free</h2><p id="dashSubStatus">No active paid subscription.</p></article>
+      <article class="info-card"><div class="section-kicker">Daily quota remaining</div><h2 id="dashCredits" style="font-size:2.2rem;margin:4px 0">—</h2><p id="dashQuotaText">Daily downloads remaining.</p></article>
+      <article class="info-card"><div class="section-kicker">Current plan</div><h2 id="dashPlan" style="font-size:1.7rem;margin:4px 0">Free</h2><p id="dashSubStatus">No active paid subscription.</p><p id="dashBatchText">Batch limit: 5 videos</p></article>
       <article class="info-card"><div class="section-kicker">Account</div><h2 style="font-size:1.7rem;margin:4px 0">Active</h2><p>Your account and credit balance are stored securely.</p></article>
     </div>
     <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:28px 0 12px"><h2 style="font-size:1.3rem;margin:0">Recent activity</h2><a href="/plans" class="btn-download">View plans</a></div>
     <div id="activityList" style="display:grid;gap:9px"><p>No activity yet.</p></div>
     <div style="margin-top:28px"><h2 style="font-size:1.3rem">Credit history</h2><div id="creditHistory" style="display:grid;gap:8px;margin-top:12px"></div></div>
   </div>
-  <div id="plansCard" class="content-section" style="display:none;max-width:900px;margin:0 auto">
-    <div class="section-kicker">Plans & subscriptions</div><h2>Choose how you use Klypza</h2>
-    <p>Start with free credits. Paid subscriptions and secure checkout will be enabled after the payment provider is connected.</p>
-    <div class="steps-grid" style="margin-top:22px">
-      <article class="info-card"><span class="badge">Available</span><h3>Free</h3><h2 style="font-size:2rem;margin:6px 0">$0</h2><p>10 starting credits</p><p>Single and batch video processing</p><p>Account dashboard and activity history</p></article>
-      <article class="info-card"><span class="badge warn">Coming soon</span><h3>Starter</h3><h2 style="font-size:2rem;margin:6px 0">—</h2><p>More monthly credits</p><p>Higher usage allowance</p><p>Subscription management</p></article>
-      <article class="info-card"><span class="badge warn">Coming soon</span><h3>Pro</h3><h2 style="font-size:2rem;margin:6px 0">—</h2><p>Designed for frequent users</p><p>Expanded credit allowance</p><p>Priority processing options</p></article>
+  <div id="plansCard" class="content-section" style="display:none;max-width:1000px;margin:0 auto">
+    <div class="section-kicker">Plans & subscriptions</div>
+    <h2>Choose the Klypza plan that fits your workflow</h2>
+    <p>Test pricing is temporary. Payments are not enabled yet, and no charge will be made from this page.</p>
+    <div class="steps-grid pricing-grid" style="margin-top:22px">
+      <article class="info-card pricing-card"><span class="badge">Available</span><h3>Free</h3><div class="plan-price">$0 <small>/ month</small></div><p class="plan-tag">For occasional downloads</p><ul><li>5 videos per batch</li><li>10 videos per day</li><li>ZIP download</li><li>Basic quality options</li><li>Standard processing queue</li><li>Advertisements shown</li></ul><a class="btn-download" href="/register">Start free</a></article>
+      <article class="info-card pricing-card"><span class="badge warn">Test price</span><h3>Standard</h3><div class="plan-price">$0.10 <small>/ month</small></div><p class="plan-tag">Temporary testing price</p><ul><li>15 videos per batch</li><li>90 videos per day</li><li>ZIP download</li><li>More quality options</li><li>Faster processing queue</li><li>No advertisements</li></ul><button class="btn-download plan-disabled" type="button" disabled>Payments not connected</button></article>
+      <article class="info-card pricing-card premium-card"><span class="badge warn">Test price</span><h3>Premium</h3><div class="plan-price">$0.20 <small>/ month</small></div><p class="plan-tag">Temporary testing price</p><ul><li>25 videos per batch</li><li>150 videos per day</li><li>ZIP download</li><li>More quality options</li><li>Priority processing queue</li><li>No advertisements</li></ul><button class="btn-download plan-disabled" type="button" disabled>Payments not connected</button></article>
     </div>
-    <p class="notice">Paid checkout is not active yet. We will connect a payment provider before accepting payments, so no customer is charged until the subscription flow is ready.</p>
+    <p class="notice">The $0.10 and $0.20 amounts are temporary test prices, not the final $4.99 and $8.99 launch prices. Checkout, renewals, cancellations, and automatic plan activation will be added only after a payment provider is connected.</p>
   </div>
-</section>
+/section>
 
 <footer class="site-footer">
   <div class="footer-inner">
@@ -333,7 +335,7 @@ main{padding-bottom:42px}
 (function () {
   'use strict';
 
-  var MAX_LINKS = 25;
+  var MAX_LINKS = 5;
   var PLATFORMS = [
     { name: 'TikTok', icon: 'fa-brands fa-tiktok', label: 'TikTok', hosts: ['tiktok.com'], example: 'https://www.tiktok.com/@username/video/1234567890' },
     { name: 'Instagram', icon: 'fa-brands fa-instagram', label: 'Instagram Reels', hosts: ['instagram.com', 'instagr.am'], example: 'https://www.instagram.com/reel/AbCdEfGhIjK/' },
@@ -342,7 +344,7 @@ main{padding-bottom:42px}
     { name: 'Pinterest', icon: 'fa-brands fa-pinterest', label: 'Pinterest', hosts: ['pinterest.com', 'pin.it'], example: 'https://www.pinterest.com/pin/1234567890/' }
   ];
 
-  var state = { platform: 'TikTok', busy: false, results: [], configured: true };
+  var state = { platform: 'TikTok', busy: false, results: [], configured: true, maxBatch: 5 };
 
   var $ = function (id) { return document.getElementById(id); };
   var els = {
@@ -384,7 +386,7 @@ main{padding-bottom:42px}
   }
   function updateCount() {
     var n = parseLinks(els.input.value).length;
-    els.count.textContent = n + ' link' + (n === 1 ? '' : 's') + (n > MAX_LINKS ? ' (' + MAX_LINKS + ' maximum)' : '');
+    els.count.textContent = n + ' link' + (n === 1 ? '' : 's') + (n > state.maxBatch ? ' (' + state.maxBatch + ' maximum)' : '');
   }
 
   // ---------- mode & platform ----------
@@ -461,7 +463,7 @@ main{padding-bottom:42px}
     if (wait > 0) await delay(wait);
   }
 
-  async function fetchOne(link) {
+  async function fetchOne(link, batchId) {
     var maxRateLimitRetries = 2;
     for (var attempt = 0; attempt <= maxRateLimitRetries; attempt++) {
       var ctrl = new AbortController();
@@ -469,7 +471,7 @@ main{padding-bottom:42px}
       try {
         await waitForRequestSlot();
         lastSaveApiRequestAt = Date.now();
-        var r = await fetch('/api/download?url=' + encodeURIComponent(link), { signal: ctrl.signal });
+        var r = await fetch('/api/download?url=' + encodeURIComponent(link) + '&batch_id=' + encodeURIComponent(batchId), { signal: ctrl.signal });
         var data = null;
         try { data = await r.json(); } catch (e) { /* bukan JSON */ }
         var code = data && data.error ? String(data.error).toLowerCase() : '';
@@ -503,7 +505,19 @@ main{padding-bottom:42px}
       els.input.focus();
       return;
     }
+    var batchInfo;
+    try {
+      var batchResponse = await fetch('/api/batch/start', { method: 'POST' });
+      batchInfo = await batchResponse.json();
+      if (!batchResponse.ok) throw new Error(batchInfo.message || 'Please log in before downloading.');
+    } catch (e) {
+      showStatus('Account required', e.message || 'Please log in to continue.', 0, true);
+      return;
+    }
+    state.maxBatch = Number(batchInfo.maxBatch || 5);
+    MAX_LINKS = state.maxBatch;
     var links = all.slice(0, MAX_LINKS);
+    updateCount();
     state.busy = true;
     state.results = [];
     els.submit.disabled = true;
@@ -530,7 +544,7 @@ main{padding-bottom:42px}
           entry.error = 'Platform mismatch: this is a ' + detected + ' link, but ' + state.platform + ' is selected. Select the matching platform or choose All platforms.';
         } else {
           try {
-            entry.data = await fetchOne(link);
+            entry.data = await fetchOne(link, batchInfo.batchId);
             if (entry.data.platform && entry.data.platform !== detected) {
               entry.error = 'The provider returned a different platform than expected. This link was not added to the download batch.';
               delete entry.data;
@@ -544,7 +558,7 @@ main{padding-bottom:42px}
       renderResults();
     }
     var failed = links.length - ok;
-    var extra = all.length > MAX_LINKS ? ' ' + (all.length - MAX_LINKS) + ' additional links ignored (maximum ' + MAX_LINKS + ').' : '';
+    var extra = all.length > MAX_LINKS ? ' ' + (all.length - MAX_LINKS) + ' additional links ignored (your plan maximum is ' + MAX_LINKS + ').' : '';
     if (ok === 0) showStatus('No videos could be processed', 'Check the message shown for each link below.' + extra, 100, true);
     else showStatus('Done: ' + ok + ' link' + (ok === 1 ? '' : 's') + ' processed' + (failed ? ', ' + failed + ' failed' : ''), 'Download individual videos or ZIP batches.' + extra, 100, false);
     state.busy = false;
@@ -731,7 +745,7 @@ main{padding-bottom:42px}
     function setAuthMode(mode){
       var isReg = mode === 'register';
       $('authTitle').textContent = isReg ? 'Create your account' : 'Welcome back';
-      $('authIntro').textContent = isReg ? 'Create an account to receive 10 free credits and manage your downloads.' : 'Log in to continue to your Klypza dashboard.';
+      $('authIntro').textContent = isReg ? 'Create an account to get 10 free downloads per day and manage your activity.' : 'Log in to continue to your Klypza dashboard.';
       $('authSubmit').textContent = isReg ? 'Create account' : 'Log in';
       $('nameField').style.display = isReg ? 'block' : 'none';
       $('authPassword').autocomplete = isReg ? 'new-password' : 'current-password';
@@ -755,7 +769,7 @@ main{padding-bottom:42px}
         if(res.status===401){location.href='/login';return;}
         var d=await res.json(); if(!res.ok) throw new Error(d.message||'Unable to load account.');
         $('dashName').textContent=d.user.name||'member'; $('dashEmail').textContent=d.user.email;
-        $('dashCredits').textContent=d.user.credits; $('dashPlan').textContent=(d.user.plan||'free').toUpperCase();
+        $('dashCredits').textContent=d.quota.remaining + ' / ' + d.quota.dailyLimit; $('dashQuotaText').textContent=d.quota.usedToday + ' used today · Resets at 00:00 UTC.'; $('dashPlan').textContent=(d.user.plan||'free').toUpperCase(); $('dashBatchText').textContent='Batch limit: '+d.quota.maxBatch+' videos';
         $('dashSubStatus').textContent=d.subscription&&d.subscription.status==='active'?'Subscription active':'No active paid subscription.';
         var activity=$('activityList'); activity.textContent='';
         (d.downloads||[]).forEach(function(item){var row=document.createElement('div');row.className='info-card';var title=document.createElement('strong');title.textContent=item.title||item.platform+' video';var meta=document.createElement('p');meta.textContent=item.platform+' · '+item.credits_used+' credit · '+new Date(item.created_at+'Z').toLocaleString();row.append(title,meta);activity.appendChild(row);});
