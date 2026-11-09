@@ -195,6 +195,37 @@ body{background:#f8f9ff;color:#111936}.site-header{background:rgba(255,255,255,.
  .visual-download{right:5%;bottom:28%;width:42px;height:42px}
  .float-platform.pinterest{top:32%;right:-2%}
 }
+
+/* Keep the hero slogan clear of the download badge */
+.visual-window{position:relative}
+.visual-window p{
+  width:72%;
+  max-width:72%;
+  align-self:flex-start;
+  margin:20px 0 0 8%;
+  text-align:left;
+  line-height:1.28;
+  position:relative;
+  z-index:6;
+  overflow-wrap:normal;
+}
+.visual-download{
+  right:6%;
+  bottom:12%;
+  top:auto;
+  z-index:4;
+}
+@media(max-width:650px){
+  .visual-window p{
+    width:70%;
+    max-width:70%;
+    margin:16px 0 0 7%;
+    font-size:.76rem;
+    line-height:1.25;
+  }
+  .visual-download{right:5%;bottom:11%;width:42px;height:42px}
+}
+
 </style>
 </head>
 <body>
