@@ -23,6 +23,13 @@ const enc = new TextEncoder();
 const SESSION_COOKIE = 'klypza_session';
 const SESSION_DAYS = 30;
 const FREE_START_CREDITS = 10;
+const PLAN_LIMITS = {
+  free: { daily: 10, batch: 5, price: 0, ads: true, quality: 'basic', queue: 'standard' },
+  standard: { daily: 90, batch: 15, price: 0.10, ads: false, quality: 'expanded', queue: 'faster' },
+  premium: { daily: 150, batch: 25, price: 0.20, ads: false, quality: 'expanded', queue: 'priority' },
+};
+function planLimits(plan){ return PLAN_LIMITS[String(plan||'free').toLowerCase()] || PLAN_LIMITS.free; }
+function utcDate(){ return new Date().toISOString().slice(0,10); }
 
 async function accountRouter(request, env, url) {
   const path = url.pathname;
@@ -35,12 +42,39 @@ async function accountRouter(request, env, url) {
     return user?json({authenticated:true,user:publicUser(user)}):json({authenticated:false},401);
   }
   if (path === '/api/account' && request.method === 'GET') return accountOverview(request,env);
-  if (path === '/api/plans' && request.method === 'GET') return json({plans:[
-    {id:'free',name:'Free',price:null,credits:FREE_START_CREDITS,available:true},
-    {id:'starter',name:'Starter',price:null,credits:null,available:false},
-    {id:'pro',name:'Pro',price:null,credits:null,available:false}
+  if (path === '/api/batch/start' && request.method === 'POST') return startDownloadBatch(request,env);
+  if (path === '/api/plans' && request.method === 'GET') return json({currency:'USD',billingPeriod:'month',testPricing:true,plans:[
+    {id:'free',name:'Free',price:0,dailyLimit:10,batchLimit:5,zip:true,quality:'Basic',queue:'Standard',ads:true,available:true},
+    {id:'standard',name:'Standard',price:0.10,dailyLimit:90,batchLimit:15,zip:true,quality:'Expanded',queue:'Faster',ads:false,available:false},
+    {id:'premium',name:'Premium',price:0.20,dailyLimit:150,batchLimit:25,zip:true,quality:'Expanded',queue:'Priority',ads:false,available:false}
   ]});
   return null;
+}
+async function startDownloadBatch(request,env){
+  const user=await getSessionUser(request,env);
+  if(!user)return json({error:'login_required',message:'Please log in to start downloading.'},401);
+  const limits=planLimits(user.plan);
+  const day=utcDate();
+  const usedRow=await env.KLYPZA_DB.prepare('SELECT COUNT(*) AS used FROM usage_events WHERE user_id=? AND usage_date=?').bind(user.id,day).first();
+  const used=Number(usedRow?.used||0);
+  if(used>=limits.daily)return json({error:'daily_limit_reached',message:'Your daily download quota is used up. It resets at 00:00 UTC.'},429);
+  const batchId=crypto.randomUUID();
+  await env.KLYPZA_DB.prepare('INSERT INTO download_batches(id,user_id,max_videos) VALUES(?,?,?)').bind(batchId,user.id,limits.batch).run();
+  return json({ok:true,batchId,maxBatch:limits.batch,dailyLimit:limits.daily,usedToday:used,remaining:limits.daily-used});
+}
+async function checkDownloadAllowance(user,env,batchId){
+  if(!batchId)return {ok:false,error:'batch_required',message:'Start a new download batch and try again.'};
+  const batch=await env.KLYPZA_DB.prepare('SELECT id,max_videos FROM download_batches WHERE id=? AND user_id=?').bind(batchId,user.id).first();
+  if(!batch)return {ok:false,error:'invalid_batch',message:'This download batch is invalid. Start a new batch.'};
+  const day=utcDate();
+  const [daily,batchCount]=await Promise.all([
+    env.KLYPZA_DB.prepare('SELECT COUNT(*) AS used FROM usage_events WHERE user_id=? AND usage_date=?').bind(user.id,day).first(),
+    env.KLYPZA_DB.prepare('SELECT COUNT(*) AS used FROM usage_events WHERE user_id=? AND batch_id=?').bind(user.id,batchId).first()
+  ]);
+  const limits=planLimits(user.plan);
+  if(Number(daily?.used||0)>=limits.daily)return {ok:false,error:'daily_limit_reached',message:'Your daily download quota is used up. It resets at 00:00 UTC.'};
+  if(Number(batchCount?.used||0)>=Number(batch.max_videos))return {ok:false,error:'batch_limit_reached',message:'Your plan allows up to '+batch.max_videos+' videos per batch. Start another batch to continue.'};
+  return {ok:true};
 }
 function publicUser(u){return {id:u.id,email:u.email,name:u.display_name,credits:Number(u.credits),plan:u.plan};}
 async function readJson(request){
@@ -107,21 +141,40 @@ async function logoutAccount(request,env){
 }
 async function accountOverview(request,env){
   const user=await getSessionUser(request,env); if(!user)return json({message:'Please log in to view your dashboard.'},401);
-  const [downloads,transactions,subscription]=await Promise.all([
+  const day=utcDate();
+  const limits=planLimits(user.plan);
+  const [downloads,transactions,subscription,usedRow]=await Promise.all([
     env.KLYPZA_DB.prepare('SELECT platform,title,credits_used,status,created_at FROM downloads WHERE user_id=? ORDER BY created_at DESC LIMIT 20').bind(user.id).all(),
     env.KLYPZA_DB.prepare('SELECT amount,balance_after,reason,created_at FROM credit_transactions WHERE user_id=? ORDER BY created_at DESC LIMIT 30').bind(user.id).all(),
-    env.KLYPZA_DB.prepare("SELECT plan,status,current_period_end FROM subscriptions WHERE user_id=? ORDER BY created_at DESC LIMIT 1").bind(user.id).first()
+    env.KLYPZA_DB.prepare("SELECT plan,status,current_period_end FROM subscriptions WHERE user_id=? ORDER BY created_at DESC LIMIT 1").bind(user.id).first(),
+    env.KLYPZA_DB.prepare('SELECT COUNT(*) AS used FROM usage_events WHERE user_id=? AND usage_date=?').bind(user.id,day).first()
   ]);
-  return json({user:publicUser(user),downloads:downloads.results||[],transactions:transactions.results||[],subscription:subscription||null});
+  const used=Number(usedRow?.used||0);
+  const safeUser=publicUser(user);
+  safeUser.credits=Math.max(0,limits.daily-used);
+  return json({user:safeUser,quota:{dailyLimit:limits.daily,maxBatch:limits.batch,usedToday:used,remaining:Math.max(0,limits.daily-used),resetsAt:'00:00 UTC'},downloads:downloads.results||[],transactions:transactions.results||[],subscription:subscription||null});
 }
-async function chargeDownloadCredit(user,env,platform,sourceUrl,title){
-  const update=await env.KLYPZA_DB.prepare('UPDATE users SET credits=credits-1,updated_at=CURRENT_TIMESTAMP WHERE id=? AND credits>=1').bind(user.id).run();
-  if(!update.meta||update.meta.changes!==1)return false;
-  const fresh=await env.KLYPZA_DB.prepare('SELECT credits FROM users WHERE id=?').bind(user.id).first();
-  const balance=Number(fresh?.credits||0);
-  await env.KLYPZA_DB.prepare('INSERT INTO credit_transactions(id,user_id,amount,balance_after,reason,reference_id) VALUES(?,?,?,?,?,?)').bind(crypto.randomUUID(),user.id,-1,balance,'video_download',null).run();
-  await env.KLYPZA_DB.prepare('INSERT INTO downloads(id,user_id,platform,source_url,title,credits_used,status) VALUES(?,?,?,?,?,?,?)').bind(crypto.randomUUID(),user.id,platform,sourceUrl,String(title||'').slice(0,200),1,'completed').run();
-  return true;
+async function chargeDownloadUsage(user,env,platform,sourceUrl,title,batchId){
+  const day=utcDate();
+  const limits=planLimits(user.plan);
+  const eventId=crypto.randomUUID();
+  const freshUsed=await env.KLYPZA_DB.prepare('SELECT COUNT(*) AS used FROM usage_events WHERE user_id=? AND usage_date=?').bind(user.id,day).first();
+  const balanceAfter=Math.max(0,limits.daily-Number(freshUsed?.used||0)-1);
+  const commands=[
+    env.KLYPZA_DB.prepare(`INSERT INTO usage_events(id,user_id,batch_id,usage_date,platform,source_url,title)
+      SELECT ?,?,?,?,?,?,?
+      WHERE (SELECT COUNT(*) FROM usage_events WHERE user_id=? AND usage_date=?) < ?
+      AND (SELECT COUNT(*) FROM usage_events WHERE user_id=? AND batch_id=?) < (SELECT max_videos FROM download_batches WHERE id=? AND user_id=?)`)
+      .bind(eventId,user.id,batchId,day,platform,sourceUrl,String(title||'').slice(0,200),user.id,day,limits.daily,user.id,batchId,batchId,user.id),
+    env.KLYPZA_DB.prepare(`INSERT INTO credit_transactions(id,user_id,amount,balance_after,reason,reference_id)
+      SELECT ?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM usage_events WHERE id=? AND user_id=?)`)
+      .bind(crypto.randomUUID(),user.id,-1,balanceAfter,'video_download',eventId,eventId,user.id),
+    env.KLYPZA_DB.prepare(`INSERT INTO downloads(id,user_id,platform,source_url,title,credits_used,status)
+      SELECT ?,?,?,?,?,1,'completed' WHERE EXISTS(SELECT 1 FROM usage_events WHERE id=? AND user_id=?)`)
+      .bind(crypto.randomUUID(),user.id,platform,sourceUrl,String(title||'').slice(0,200),eventId,user.id)
+  ];
+  const result=await env.KLYPZA_DB.batch(commands);
+  return Boolean(result[0]?.meta?.changes===1);
 }
 
 
@@ -204,7 +257,9 @@ function isProfileLink(platform, u) {
 async function handleDownload(url, env, request) {
   const user=await getSessionUser(request,env);
   if(!user)return json({error:'login_required',message:'Create a free account or log in to use Klypza downloads.'},401);
-  if(Number(user.credits)<1)return json({error:'insufficient_credits',message:'You have no credits left. View plans to get more credits.'},402);
+  const batchId=url.searchParams.get('batch_id')||'';
+  const allowance=await checkDownloadAllowance(user,env,batchId);
+  if(!allowance.ok)return json({error:allowance.error,message:allowance.message},allowance.error==='daily_limit_reached'?429:allowance.error==='batch_limit_reached'?429:400);
   if (!env.SAVEAPI_KEY) {
     return json({
       error: 'not_configured',
@@ -309,9 +364,9 @@ async function handleDownload(url, env, request) {
       file,
     });
   }
-  const charged=await chargeDownloadCredit(user,env,platform,parsed.href,result.title);
+  const charged=await chargeDownloadUsage(user,env,platform,parsed.href,result.title,batchId);
   if(!charged)return json({error:'insufficient_credits',message:'You have no credits left. Please view plans.'},402);
-  return json({ platform, title: result.title, author: result.author, items, credits_remaining: Math.max(0,Number(user.credits)-1) });
+  return json({ platform, title: result.title, author: result.author, items, credits_remaining: Math.max(0,planLimits(user.plan).daily-Number((await env.KLYPZA_DB.prepare('SELECT COUNT(*) AS used FROM usage_events WHERE user_id=? AND usage_date=?').bind(user.id,utcDate()).first())?.used||0)) });
 }
 
 async function handleYouTubeInfo(parsed, env, user) {
@@ -375,7 +430,7 @@ async function handleYouTubeInfo(parsed, env, user) {
   }
   if (!items.length) return json({ error: 'no_video', message: 'No supported YouTube video qualities were found.' }, 422);
   items.sort((a, b) => parseInt(b.quality, 10) - parseInt(a.quality, 10));
-  const charged=await chargeDownloadCredit(user,env,'YouTube',parsed.href,title);
+  const charged=await chargeDownloadUsage(user,env,'YouTube',parsed.href,title,batchId);
   if(!charged)return json({error:'insufficient_credits',message:'You have no credits left. Please view plans.'},402);
   return json({ platform: 'YouTube', title, author, items, credits_remaining: Math.max(0,Number(user.credits)-1) });
 }
