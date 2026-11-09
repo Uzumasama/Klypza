@@ -186,7 +186,7 @@ export default {
       return new Response(INDEX_HTML,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-cache'}});
     }
     if (url.pathname === '/klypza-mark.svg') return new Response('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="g" x2="1" y2="1"><stop stop-color="#2878f0"/><stop offset="1" stop-color="#7928ca"/></linearGradient></defs><rect width="64" height="64" rx="18" fill="#111936"/><path d="M17 15h9v20l15-14h12L36 35l18 15H42L26 37v13h-9z" fill="url(#g)"/></svg>',{headers:{'content-type':'image/svg+xml','cache-control':'public,max-age=86400'}});
-    if (url.pathname.startsWith('/api/auth/') || url.pathname === '/api/account' || url.pathname === '/api/plans') {
+    if (url.pathname.startsWith('/api/auth/') || url.pathname === '/api/account' || url.pathname === '/api/plans' || url.pathname === '/api/batch/start') {
       const response=await accountRouter(request,env,url); if(response)return response;
     }
     if (url.pathname === '/api/health') return health(env);
