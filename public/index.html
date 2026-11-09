@@ -185,7 +185,7 @@ main{padding-bottom:42px}
       <div class="tool-heading">
         <span class="mini-icon"><i class="fa-solid fa-cloud-arrow-down" aria-hidden="true"></i></span>
         <h2 id="tool-title">Download social videos</h2>
-        <p>Choose a platform, paste one or more direct video links, and process up to 25 links at once.</p>
+        <p>Choose a platform, paste direct video links, and process up to the batch limit included with your plan.</p>
       </div>
       <div id="configBanner" class="banner warn" role="status" hidden></div>
       <div class="platform-grid" id="platformGrid" role="group" aria-label="Choose a video platform"></div>
@@ -388,6 +388,7 @@ main{padding-bottom:42px}
     var n = parseLinks(els.input.value).length;
     els.count.textContent = n + ' link' + (n === 1 ? '' : 's') + (n > state.maxBatch ? ' (' + state.maxBatch + ' maximum)' : '');
   }
+  window.klypzaSetPlanLimits = function (batchLimit) { state.maxBatch = Math.max(1, Number(batchLimit) || 5); MAX_LINKS = state.maxBatch; updateCount(); };
 
   // ---------- mode & platform ----------
   function setPlatform(name) {
@@ -735,7 +736,7 @@ main{padding-bottom:42px}
     var panel = $('accountPanel'), authCard = $('authCard'), dash = $('dashboardCard'), plans = $('plansCard');
     if (!panel) return;
     var view = path === '/register' ? 'register' : path === '/login' ? 'login' : path === '/dashboard' ? 'dashboard' : path === '/plans' ? 'plans' : 'home';
-    if (view === 'home') { fetch('/api/account',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).then(function(d){if(d&&d.quota){state.maxBatch=Number(d.quota.maxBatch||5);MAX_LINKS=state.maxBatch;updateCount();}if(d&&d.user&&d.user.plan!=='free')document.querySelectorAll('.ad-slot').forEach(function(n){n.hidden=true;});}).catch(function(){}); return; }
+    if (view === 'home') { fetch('/api/account',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).then(function(d){if(d&&d.quota&&window.klypzaSetPlanLimits){window.klypzaSetPlanLimits(d.quota.maxBatch);}if(d&&d.user&&d.user.plan!=='free')document.querySelectorAll('.ad-slot').forEach(function(n){n.hidden=true;});}).catch(function(){}); return; }
     panel.style.display = 'block';
     document.querySelector('.hero').style.display = 'none';
     document.querySelector('main').style.display = 'none';
