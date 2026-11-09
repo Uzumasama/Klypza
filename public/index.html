@@ -8,10 +8,10 @@
 <meta name="description" content="Klypza is a simple free video downloader for supported public TikTok, Instagram Reels, Facebook Reels, YouTube Shorts and Pinterest video links.">
 <meta name="robots" content="index, follow, max-image-preview:large">
 <meta name="theme-color" content="#111936">
-<link rel="canonical" href="https://klypza.cokso344.workers.dev/">
+<link rel="canonical" href="https://klypza-app.cokso344.workers.dev/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Klypza">
-<meta property="og:url" content="https://klypza.cokso344.workers.dev/">
+<meta property="og:url" content="https://klypza-app.cokso344.workers.dev/">
 <meta property="og:title" content="Klypza — Free Social Video Downloader">
 <meta property="og:description" content="Download supported public social videos with Klypza. Paste a link and save videos individually or in batches.">
 <meta name="twitter:card" content="summary">
@@ -28,7 +28,7 @@
   "@context": "https://schema.org",
   "@type": "WebApplication",
   "name": "Klypza",
-  "url": "https://klypza.cokso344.workers.dev/",
+  "url": "https://klypza-app.cokso344.workers.dev/",
   "applicationCategory": "MultimediaApplication",
   "operatingSystem": "Any",
   "inLanguage": "en",
@@ -136,6 +136,9 @@ main{padding-bottom:42px}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 @media(max-width:760px){.nav-wrap{padding:14px 18px}.nav-links{gap:14px}.nav-links a:not(.nav-cta){display:none}.hero{padding:48px 0 30px}.container{width:min(100% - 28px,1160px)}.platform-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.platform-btn{min-height:74px}.steps-grid,.benefit-grid{grid-template-columns:1fr}.platform-info-grid{grid-template-columns:1fr}.ad-slot{margin:18px auto;min-height:76px}.content-section,.tool-card{border-radius:20px}}
 @media(max-width:430px){.container{width:calc(100% - 20px)}.logo{font-size:1rem}.logo-mark{width:34px;height:34px;flex-basis:34px}.nav-cta{padding:8px 11px;font-size:.82rem}.hero h1{font-size:2.25rem}.hero-copy{font-size:.96rem}.platform-pills{gap:7px}.platform-pill{font-size:.76rem;padding:7px 9px}.tool-card,.content-section{padding:19px}.platform-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.platform-btn:last-child{grid-column:span 2}.input-hint{font-size:.78rem}.options-row{align-items:flex-start}.select-wrap{width:100%;justify-content:space-between}.item-row{flex-wrap:wrap}.item-meta{min-width:calc(100% - 80px)}.item-row .btn-download{width:100%}.batch-header{align-items:flex-start;flex-direction:column}.footer-links{gap:12px 15px}}
+#accountPanel input:focus{outline:3px solid rgba(40,120,240,.18);border-color:#2878f0}
+#accountPanel .steps-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media(max-width:760px){#accountPanel .steps-grid{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{transition:none!important;animation:none!important}}
 </style>
 </head>
@@ -147,7 +150,9 @@ main{padding-bottom:42px}
       <a href="#how-it-works">How it works</a>
       <a href="#supported-platforms">Platforms</a>
       <a href="#faq">FAQ</a>
-      <a href="#video-tool" class="nav-cta">Start downloading <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
+      <a href="/plans">Plans</a>
+      <a href="/login">Log in</a>
+      <a href="/register" class="nav-cta">Create account</a>
     </nav>
   </div>
 </header>
@@ -265,6 +270,46 @@ main{padding-bottom:42px}
     </section>
   </div>
 </main>
+
+<section id="accountPanel" class="container" style="display:none;padding:42px 0 70px">
+  <div id="authCard" class="content-section" style="max-width:560px;margin:0 auto">
+    <div class="section-kicker">Klypza account</div>
+    <h2 id="authTitle">Create your account</h2>
+    <p id="authIntro">Sign up with your email to manage your credits and downloads.</p>
+    <form id="authForm" style="display:grid;gap:14px;margin-top:22px">
+      <label id="nameField">Name<input id="authName" name="name" autocomplete="name" maxlength="60" style="display:block;width:100%;padding:13px;border:1px solid #d8deea;border-radius:12px;margin-top:6px"></label>
+      <label>Email address<input id="authEmail" name="email" type="email" autocomplete="email" required maxlength="190" style="display:block;width:100%;padding:13px;border:1px solid #d8deea;border-radius:12px;margin-top:6px"></label>
+      <label>Password<input id="authPassword" name="password" type="password" autocomplete="new-password" required minlength="10" maxlength="128" style="display:block;width:100%;padding:13px;border:1px solid #d8deea;border-radius:12px;margin-top:6px"></label>
+      <button class="btn-submit" id="authSubmit" type="submit">Create account</button>
+      <p id="authMessage" role="status" style="font-size:.9rem;color:#566178"></p>
+    </form>
+    <p id="authSwitch" style="margin-top:16px;font-size:.9rem"></p>
+  </div>
+  <div id="dashboardCard" class="content-section" style="display:none;max-width:900px;margin:0 auto">
+    <div style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:center">
+      <div><div class="section-kicker">Customer dashboard</div><h2>Welcome, <span id="dashName">member</span></h2><p id="dashEmail"></p></div>
+      <button id="logoutButton" type="button" class="btn-download">Log out</button>
+    </div>
+    <div class="steps-grid" style="margin-top:24px">
+      <article class="info-card"><div class="section-kicker">Available credits</div><h2 id="dashCredits" style="font-size:2.2rem;margin:4px 0">—</h2><p>One credit is used for each successful video link.</p></article>
+      <article class="info-card"><div class="section-kicker">Current plan</div><h2 id="dashPlan" style="font-size:1.7rem;margin:4px 0">Free</h2><p id="dashSubStatus">No active paid subscription.</p></article>
+      <article class="info-card"><div class="section-kicker">Account</div><h2 style="font-size:1.7rem;margin:4px 0">Active</h2><p>Your account and credit balance are stored securely.</p></article>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:28px 0 12px"><h2 style="font-size:1.3rem;margin:0">Recent activity</h2><a href="/plans" class="btn-download">View plans</a></div>
+    <div id="activityList" style="display:grid;gap:9px"><p>No activity yet.</p></div>
+    <div style="margin-top:28px"><h2 style="font-size:1.3rem">Credit history</h2><div id="creditHistory" style="display:grid;gap:8px;margin-top:12px"></div></div>
+  </div>
+  <div id="plansCard" class="content-section" style="display:none;max-width:900px;margin:0 auto">
+    <div class="section-kicker">Plans & subscriptions</div><h2>Choose how you use Klypza</h2>
+    <p>Start with free credits. Paid subscriptions and secure checkout will be enabled after the payment provider is connected.</p>
+    <div class="steps-grid" style="margin-top:22px">
+      <article class="info-card"><span class="badge">Available</span><h3>Free</h3><h2 style="font-size:2rem;margin:6px 0">$0</h2><p>10 starting credits</p><p>Single and batch video processing</p><p>Account dashboard and activity history</p></article>
+      <article class="info-card"><span class="badge warn">Coming soon</span><h3>Starter</h3><h2 style="font-size:2rem;margin:6px 0">—</h2><p>More monthly credits</p><p>Higher usage allowance</p><p>Subscription management</p></article>
+      <article class="info-card"><span class="badge warn">Coming soon</span><h3>Pro</h3><h2 style="font-size:2rem;margin:6px 0">—</h2><p>Designed for frequent users</p><p>Expanded credit allowance</p><p>Priority processing options</p></article>
+    </div>
+    <p class="notice">Paid checkout is not active yet. We will connect a payment provider before accepting payments, so no customer is charged until the subscription flow is ready.</p>
+  </div>
+</section>
 
 <footer class="site-footer">
   <div class="footer-inner">
@@ -668,6 +713,60 @@ main{padding-bottom:42px}
   updateCount();
   checkHealth();
 })();
+
+  // ---------- Klypza accounts ----------
+  (function accountApp(){
+    var path = location.pathname.replace(/\\/+$/, '') || '/';
+    var panel = $('accountPanel'), authCard = $('authCard'), dash = $('dashboardCard'), plans = $('plansCard');
+    if (!panel) return;
+    var view = path === '/register' ? 'register' : path === '/login' ? 'login' : path === '/dashboard' ? 'dashboard' : path === '/plans' ? 'plans' : 'home';
+    if (view === 'home') return;
+    panel.style.display = 'block';
+    document.querySelector('.hero').style.display = 'none';
+    document.querySelector('main').style.display = 'none';
+    if (view === 'plans') { authCard.style.display='none'; plans.style.display='block'; }
+    else if (view === 'dashboard') { authCard.style.display='none'; dash.style.display='block'; loadDashboard(); }
+    else { authCard.style.display='block'; setAuthMode(view); }
+    function setAuthMode(mode){
+      var isReg = mode === 'register';
+      $('authTitle').textContent = isReg ? 'Create your account' : 'Welcome back';
+      $('authIntro').textContent = isReg ? 'Create an account to receive 10 free credits and manage your downloads.' : 'Log in to continue to your Klypza dashboard.';
+      $('authSubmit').textContent = isReg ? 'Create account' : 'Log in';
+      $('nameField').style.display = isReg ? 'block' : 'none';
+      $('authPassword').autocomplete = isReg ? 'new-password' : 'current-password';
+      $('authPassword').minLength = isReg ? 10 : 1;
+      $('authSwitch').innerHTML = isReg ? 'Already have an account? <a href="/login">Log in</a>' : 'New to Klypza? <a href="/register">Create an account</a>';
+      $('authForm').onsubmit = async function(ev){
+        ev.preventDefault(); $('authMessage').textContent='Please wait…'; $('authSubmit').disabled=true;
+        try{
+          var payload={email:$('authEmail').value.trim(),password:$('authPassword').value};
+          if(isReg) payload.name=$('authName').value.trim();
+          var res=await fetch('/api/auth/'+(isReg?'register':'login'),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
+          var data=await res.json();
+          if(!res.ok) throw new Error(data.message||'Unable to continue.');
+          location.href='/dashboard';
+        }catch(err){$('authMessage').textContent=err.message;$('authSubmit').disabled=false;}
+      };
+    }
+    async function loadDashboard(){
+      try{
+        var res=await fetch('/api/account',{cache:'no-store'});
+        if(res.status===401){location.href='/login';return;}
+        var d=await res.json(); if(!res.ok) throw new Error(d.message||'Unable to load account.');
+        $('dashName').textContent=d.user.name||'member'; $('dashEmail').textContent=d.user.email;
+        $('dashCredits').textContent=d.user.credits; $('dashPlan').textContent=(d.user.plan||'free').toUpperCase();
+        $('dashSubStatus').textContent=d.subscription&&d.subscription.status==='active'?'Subscription active':'No active paid subscription.';
+        var activity=$('activityList'); activity.textContent='';
+        (d.downloads||[]).forEach(function(item){var row=document.createElement('div');row.className='info-card';var title=document.createElement('strong');title.textContent=item.title||item.platform+' video';var meta=document.createElement('p');meta.textContent=item.platform+' · '+item.credits_used+' credit · '+new Date(item.created_at+'Z').toLocaleString();row.append(title,meta);activity.appendChild(row);});
+        if(!activity.children.length) activity.textContent='No downloads yet.';
+        var history=$('creditHistory');history.textContent='';
+        (d.transactions||[]).forEach(function(item){var row=document.createElement('div');row.className='item-row';var desc=document.createElement('span');desc.textContent=item.reason.replace(/_/g,' ');var amount=document.createElement('strong');amount.textContent=(item.amount>0?'+':'')+item.amount+' credits';row.append(desc,amount);history.appendChild(row);});
+        if(!history.children.length) history.textContent='No credit transactions yet.';
+      }catch(err){$('activityList').textContent=err.message;}
+    }
+    $('logoutButton').addEventListener('click',async function(){await fetch('/api/auth/logout',{method:'POST'});location.href='/';});
+  })();
+
 </script>
 </body>
 </html>
