@@ -203,7 +203,7 @@ main{padding-bottom:42px}
         <label class="select-wrap" for="batchSize">
           <span>Videos per ZIP batch</span>
           <select id="batchSize" aria-label="Videos per ZIP batch">
-            <option value="10">10</option><option value="15">15</option><option value="20" selected>20</option><option value="25">25</option>
+            <option value="5" selected>5</option><option value="15">15</option><option value="25">25</option>
           </select>
         </label>
       </div>
@@ -388,7 +388,7 @@ main{padding-bottom:42px}
     var n = parseLinks(els.input.value).length;
     els.count.textContent = n + ' link' + (n === 1 ? '' : 's') + (n > state.maxBatch ? ' (' + state.maxBatch + ' maximum)' : '');
   }
-  window.klypzaSetPlanLimits = function (batchLimit) { state.maxBatch = Math.max(1, Number(batchLimit) || 5); MAX_LINKS = state.maxBatch; updateCount(); };
+  window.klypzaSetPlanLimits = function (batchLimit) { state.maxBatch = Math.max(1, Number(batchLimit) || 5); MAX_LINKS = state.maxBatch; if (els.size) { var allowed = [5,15,25]; els.size.innerHTML = ''; allowed.filter(function(v){return v <= state.maxBatch;}).forEach(function(v){els.size.appendChild(el('option',{value:String(v),text:String(v)}));}); els.size.value = String(state.maxBatch); } updateCount(); };
 
   // ---------- mode & platform ----------
   function setPlatform(name) {
