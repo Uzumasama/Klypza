@@ -146,6 +146,7 @@ async function accountRouter(request, env, url) {
   const path = url.pathname;
   if (!env.KLYPZA_DB) return json({error:'database_unavailable',message:'Account storage is not configured.'},503);
   if (path === '/api/auth/register' && request.method === 'POST') return registerAccount(request,env);
+  if (path === '/api/auth/resend-verification' && request.method === 'POST') return resendVerificationEmail(request,env);
   if (path === '/api/auth/login' && request.method === 'POST') return loginAccount(request,env);
   if (path === '/api/auth/logout' && request.method === 'POST') return logoutAccount(request,env);
   if (path === '/api/auth/me' && request.method === 'GET') {
@@ -164,6 +165,7 @@ async function accountRouter(request, env, url) {
 async function startDownloadBatch(request,env){
   const user=await getSessionUser(request,env);
   if(!user)return json({error:'login_required',message:'Please log in to start downloading.'},401);
+  if(Number(user.email_verified)!==1)return json({error:'email_not_verified',message:'Verify your email address before downloading. Check your inbox or request a new verification link from your dashboard.'},403);
   const limits=planLimits(user.plan);
   const day=utcDate();
   const usedRow=await env.KLYPZA_DB.prepare('SELECT COUNT(*) AS used FROM usage_events WHERE user_id=? AND usage_date=?').bind(user.id,day).first();
@@ -187,7 +189,7 @@ async function checkDownloadAllowance(user,env,batchId){
   if(Number(batchCount?.used||0)>=Number(batch.max_videos))return {ok:false,error:'batch_limit_reached',message:'Your plan allows up to '+batch.max_videos+' videos per batch. Start another batch to continue.'};
   return {ok:true};
 }
-function publicUser(u){return {id:u.id,email:u.email,name:u.display_name,credits:Number(u.credits),plan:u.plan};}
+function publicUser(u){return {id:u.id,email:u.email,name:u.display_name,credits:Number(u.credits),plan:u.plan,emailVerified:Number(u.email_verified)===1};}
 async function readJson(request){
   try {
     const declared=Number(request.headers.get('Content-Length')||0);
@@ -237,17 +239,17 @@ async function createSession(userId,env){
 async function getSessionUser(request,env){
   const token=cookieToken(request); if(!token||!env.KLYPZA_DB)return null;
   const tokenHash=await sha256(token);
-  return await env.KLYPZA_DB.prepare('SELECT u.id,u.email,u.display_name,u.credits,u.plan FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?').bind(tokenHash,new Date().toISOString()).first();
+  return await env.KLYPZA_DB.prepare('SELECT u.id,u.email,u.display_name,u.credits,u.plan,u.email_verified FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?').bind(tokenHash,new Date().toISOString()).first();
 }
 async function registerAccount(request,env){
   const origin=request.headers.get('Origin'); if(origin&&origin!==new URL(request.url).origin)return json({message:'Request origin rejected.'},403);
+  if(!env.RESEND_API_KEY)return json({message:'Email verification is temporarily unavailable. Please try again later.'},503);
   const data=await readJson(request); const email=String(data?.email||'').trim().toLowerCase();
   const password=String(data?.password||''); const name=String(data?.name||'').trim().slice(0,60);
   if(!email || email.length>190 || email.includes(' ') || !email.includes('@') || email.lastIndexOf('.')<email.indexOf('@')+2)return json({message:'Enter a valid email address.'},400);
   if(password.length<10||password.length>128)return json({message:'Password must contain 10–128 characters.'},400);
   const existing=await env.KLYPZA_DB.prepare('SELECT id FROM users WHERE email=?').bind(email).first();
   if(existing)return json({message:'An account with this email already exists. Log in instead.'},409);
-  // Bind one free registration to one browser device token. Only a hash is stored.
   const deviceToken=cookieValue(request,DEVICE_COOKIE)||randomToken();
   const deviceHash=await sha256(deviceToken);
   const claimed=await env.KLYPZA_DB.prepare("SELECT c.user_id FROM free_device_claims c JOIN users u ON u.id=c.user_id WHERE c.device_hash=? AND u.plan='free'").bind(deviceHash).first();
@@ -255,25 +257,76 @@ async function registerAccount(request,env){
   const id=crypto.randomUUID(),salt=randomToken(),hash=await passwordHash(password,salt);
   try {
     await env.KLYPZA_DB.batch([
-      env.KLYPZA_DB.prepare('INSERT INTO users(id,email,display_name,password_hash,password_salt,credits,plan) VALUES(?,?,?,?,?,?,?)').bind(id,email,name,hash,salt,FREE_START_CREDITS,'free'),
-      env.KLYPZA_DB.prepare('INSERT INTO free_device_claims(device_hash,user_id,created_at) VALUES(?,?,?)').bind(deviceHash,id,new Date().toISOString()),
-      env.KLYPZA_DB.prepare('INSERT INTO credit_transactions(id,user_id,amount,balance_after,reason) VALUES(?,?,?,?,?)').bind(crypto.randomUUID(),id,FREE_START_CREDITS,FREE_START_CREDITS,'welcome_credits')
+      env.KLYPZA_DB.prepare('INSERT INTO users(id,email,display_name,password_hash,password_salt,credits,plan,email_verified) VALUES(?,?,?,?,?,?,?,0)').bind(id,email,name,hash,salt,0,'free'),
+      env.KLYPZA_DB.prepare('INSERT INTO free_device_claims(device_hash,user_id,created_at) VALUES(?,?,?)').bind(deviceHash,id,new Date().toISOString())
     ]);
   } catch(err) {
     const duplicate=await env.KLYPZA_DB.prepare("SELECT c.user_id FROM free_device_claims c JOIN users u ON u.id=c.user_id WHERE c.device_hash=? AND u.plan='free'").bind(deviceHash).first();
     if(duplicate)return json({message:'This device already has a Free account. Please log in to your existing account.'},409,{'set-cookie':deviceCookie(deviceToken)});
     throw err;
   }
+  const sent=await issueVerificationEmail(id,email,env);
   const sessionCookie=await createSession(id,env);
-  const response=json({ok:true,user:{id,email,name,credits:FREE_START_CREDITS,plan:'free'}},201,{'set-cookie':sessionCookie});
+  const response=json({ok:true,pendingVerification:true,message:sent?'Account created. Check your inbox for the verification link.':'Your account was created, but the verification email could not be sent. Log in and request a new link from your dashboard.'},201,{'set-cookie':sessionCookie});
   response.headers.append('set-cookie',deviceCookie(deviceToken));
   return response;
+}
+async function issueVerificationEmail(userId,email,env){
+  const token=randomToken(), tokenHash=await sha256(token);
+  const expires=new Date(Date.now()+30*60*1000).toISOString();
+  await env.KLYPZA_DB.prepare('DELETE FROM email_verification_tokens WHERE user_id=?').bind(userId).run();
+  await env.KLYPZA_DB.prepare('INSERT INTO email_verification_tokens(token_hash,user_id,expires_at) VALUES(?,?,?)').bind(tokenHash,userId,expires).run();
+  const verifyUrl='https://klypza.web.id/api/auth/verify-email?token='+encodeURIComponent(token);
+  try{
+    const response=await fetch('https://api.resend.com/emails',{method:'POST',headers:{'authorization':'Bearer '+env.RESEND_API_KEY,'content-type':'application/json'},body:JSON.stringify({
+      from:'Klypza <verify@klypza.web.id>',
+      to:[email],
+      subject:'Verify your Klypza email address',
+      html:'<div style="font-family:Arial,sans-serif;max-width:560px;margin:32px auto;padding:28px;color:#111936;border:1px solid #e5e8f2;border-radius:18px"><h1 style="margin-top:0">Verify your email</h1><p>Thanks for creating a Klypza account. Confirm your email address to activate your account and receive your 10 free daily credits.</p><p style="margin:28px 0"><a href="'+verifyUrl+'" style="display:inline-block;padding:13px 20px;background:#2878f0;color:#fff;text-decoration:none;border-radius:10px;font-weight:bold">Verify email address</a></p><p>This link expires in 30 minutes and can only be used once. If you did not create this account, you can ignore this email.</p><p style="color:#64708a;font-size:13px">Klypza · klypza.web.id</p></div>',
+      text:'Verify your Klypza email address: '+verifyUrl+'\nThis link expires in 30 minutes and can only be used once.'
+    })});
+    if(!response.ok){console.error('RESEND_EMAIL_ERROR',response.status,await response.text());return false;}
+    return true;
+  }catch(err){console.error('RESEND_EMAIL_ERROR',String(err));return false;}
+}
+async function resendVerificationEmail(request,env){
+  const origin=request.headers.get('Origin'); if(origin&&origin!==new URL(request.url).origin)return json({message:'Request origin rejected.'},403);
+  const data=await readJson(request); const email=String(data?.email||'').trim().toLowerCase();
+  if(!email||email.length>190)return json({ok:true,message:'If the account needs verification, a new email will be sent.'});
+  const user=await env.KLYPZA_DB.prepare('SELECT id,email,email_verified FROM users WHERE email=?').bind(email).first();
+  if(user&&Number(user.email_verified)!==1){
+    const recent=await env.KLYPZA_DB.prepare("SELECT created_at FROM email_verification_tokens WHERE user_id=? AND created_at>datetime('now','-60 seconds') LIMIT 1").bind(user.id).first();
+    if(!recent){
+      const sent=await issueVerificationEmail(user.id,user.email,env);
+      if(!sent)return json({message:'The verification email could not be sent. Please try again later.'},502);
+    }
+  }
+  return json({ok:true,message:'If the account needs verification, a new email will be sent.'});
+}
+async function verifyEmailToken(url,env){
+  const token=String(url.searchParams.get('token')||'');
+  if(!/^[A-Za-z0-9_-]{40,60}$/.test(token))return verificationResultPage(false,'This verification link is invalid or incomplete.');
+  const tokenHash=await sha256(token);
+  const row=await env.KLYPZA_DB.prepare('SELECT user_id FROM email_verification_tokens WHERE token_hash=? AND expires_at>?').bind(tokenHash,new Date().toISOString()).first();
+  if(!row)return verificationResultPage(false,'This verification link has expired or has already been used. Log in and request a new link.');
+  await env.KLYPZA_DB.batch([
+    env.KLYPZA_DB.prepare('UPDATE users SET email_verified=1,credits=? WHERE id=? AND email_verified=0').bind(FREE_START_CREDITS,row.user_id),
+    env.KLYPZA_DB.prepare("INSERT INTO credit_transactions(id,user_id,amount,balance_after,reason) SELECT ?,?,?,?,'welcome_credits' WHERE EXISTS(SELECT 1 FROM users WHERE id=? AND email_verified=1 AND credits=?) AND NOT EXISTS(SELECT 1 FROM credit_transactions WHERE user_id=? AND reason='welcome_credits')").bind(crypto.randomUUID(),row.user_id,FREE_START_CREDITS,FREE_START_CREDITS,row.user_id,FREE_START_CREDITS,row.user_id),
+    env.KLYPZA_DB.prepare('DELETE FROM email_verification_tokens WHERE token_hash=?').bind(tokenHash)
+  ]);
+  const user=await env.KLYPZA_DB.prepare('SELECT email_verified FROM users WHERE id=?').bind(row.user_id).first();
+  return verificationResultPage(Number(user?.email_verified)===1,'Your email address is verified. You can now use your Klypza account and your 10 free credits.');
+}
+function verificationResultPage(ok,message){
+  const safe=String(message).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const body='<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Email verification | Klypza</title><body style="margin:0;background:#f5f7fc;color:#111936;font:16px/1.6 Arial,sans-serif"><main style="max-width:540px;margin:12vh auto;padding:32px;background:#fff;border:1px solid #e4e8f2;border-radius:20px"><h1>'+(ok?'Email verified':'Verification link unavailable')+'</h1><p>'+safe+'</p><a href="https://klypza.web.id/login" style="display:inline-block;margin-top:16px;padding:12px 18px;border-radius:10px;background:#2878f0;color:white;text-decoration:none;font-weight:bold">Continue to Klypza</a></main></body></html>';
+  return new Response(body,{status:200,headers:securityHeaders({'content-type':'text/html; charset=utf-8','cache-control':'no-store'})});
 }
 async function loginAccount(request,env){
   const origin=request.headers.get('Origin'); if(origin&&origin!==new URL(request.url).origin)return json({message:'Request origin rejected.'},403);
   const data=await readJson(request); const email=String(data?.email||'').trim().toLowerCase(); const password=String(data?.password||'');
   if(!email||!password)return json({message:'Enter your email and password.'},400);
-  const user=await env.KLYPZA_DB.prepare('SELECT id,email,display_name,password_hash,password_salt,credits,plan FROM users WHERE email=?').bind(email).first();
+  const user=await env.KLYPZA_DB.prepare('SELECT id,email,display_name,password_hash,password_salt,credits,plan,email_verified FROM users WHERE email=?').bind(email).first();
   if(!user)return json({message:'Email or password is incorrect.'},401);
   const actual=await passwordHash(password,user.password_salt);
   if(actual!==user.password_hash)return json({message:'Email or password is incorrect.'},401);
@@ -364,6 +417,7 @@ export default {
     if (url.pathname === '/sitemap.xml') return new Response('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://klypza.web.id/</loc></url><url><loc>https://klypza.web.id/plans</loc></url><url><loc>https://klypza.web.id/about</loc></url><url><loc>https://klypza.web.id/contact</loc></url><url><loc>https://klypza.web.id/privacy-policy</loc></url><url><loc>https://klypza.web.id/terms</loc></url><url><loc>https://klypza.web.id/copyright</loc></url></urlset>',{headers:{'content-type':'application/xml; charset=utf-8'}});
     if (['/about','/contact','/privacy-policy','/terms','/copyright'].includes(url.pathname)) return infoPageResponse(url.pathname.slice(1));
     if (url.pathname === '/api/public-stats' && request.method === 'GET') return await publicStats(env);
+    if(url.pathname==='/api/auth/verify-email' && request.method==='GET') return await verifyEmailToken(url,env);
     if (url.pathname.startsWith('/api/auth/') || url.pathname === '/api/account' || url.pathname === '/api/plans' || url.pathname === '/api/batch/start') {
       const response=await accountRouter(request,env,url); if(response)return response;
     }
@@ -437,6 +491,7 @@ function isProfileLink(platform, u) {
 async function handleDownload(url, env, request) {
   const user=await getSessionUser(request,env);
   if(!user)return json({error:'login_required',message:'Create a free account or log in to use Klypza downloads.'},401);
+  if(Number(user.email_verified)!==1)return json({error:'email_not_verified',message:'Verify your email address before downloading.'},403);
   const batchId=url.searchParams.get('batch_id')||'';
   const allowance=await checkDownloadAllowance(user,env,batchId);
   if(!allowance.ok)return json({error:allowance.error,message:allowance.message},allowance.error==='daily_limit_reached'?429:allowance.error==='batch_limit_reached'?429:400);
