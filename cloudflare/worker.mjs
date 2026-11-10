@@ -135,9 +135,6 @@ function appPageHtml(path) {
     button.setAttribute('aria-label', (show ? 'Hide' : 'Show') + ' password');
   }
   document.addEventListener('click', handlePasswordToggle, true);
-  document.addEventListener('pointerup', function (event) {
-    if (event.pointerType === 'touch') handlePasswordToggle(event);
-  }, true);
 })();
 </script>`;
     html = html.replace('</body>', tabController + profileDataController + passwordToggleController + '</body>');
