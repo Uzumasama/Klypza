@@ -139,7 +139,7 @@ function infoPageResponse(slug){
   const navHtml=nav.map(([label,path])=>'<a href="'+path+'"'+(path==='/'+slug?' aria-current="page"':'')+'>'+label+'</a>').join('');
   const schema=JSON.stringify({'@context':'https://schema.org','@type':'WebPage','name':page.title+' | Klypza','url':base,'description':page.description,'isPartOf':{'@type':'WebSite','name':'Klypza','url':'https://klypza.web.id/'}});
   const body='<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+esc(page.title)+' | Klypza</title><meta name="description" content="'+esc(page.description)+'"><meta name="robots" content="index,follow,max-image-preview:large"><link rel="canonical" href="'+base+'"><meta property="og:type" content="website"><meta property="og:site_name" content="Klypza"><meta property="og:url" content="'+base+'"><meta property="og:title" content="'+esc(page.title)+' | Klypza"><meta property="og:description" content="'+esc(page.description)+'"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="'+esc(page.title)+' | Klypza"><meta name="twitter:description" content="'+esc(page.description)+'"><meta name="theme-color" content="#111936"><link rel="icon" href="/brand-icon.webp?v=2" type="image/webp"><link rel="apple-touch-icon" href="/brand-icon.webp?v=2"><script type="application/ld+json">'+schema+'</script><style>*{box-sizing:border-box}body{margin:0;background:#f7f8fd;color:#111936;font:16px/1.7 system-ui,-apple-system,"Segoe UI",sans-serif}.wrap{max-width:900px;margin:0 auto;padding:28px 22px 56px}.brand{display:inline-flex;align-items:center;text-decoration:none}.brand img{display:block;width:190px;height:auto;max-height:56px;object-fit:contain}.nav{display:flex;flex-wrap:wrap;gap:10px 18px;margin:22px 0 34px;padding:14px 0;border-top:1px solid #e5e8f2;border-bottom:1px solid #e5e8f2}.nav a,.back{color:#245fc5;font-weight:650;text-decoration:none}.nav a[aria-current=page]{color:#111936;text-decoration:underline;text-underline-offset:5px}.card,.content-section{background:#fff;border:1px solid #e5e8f2;border-radius:18px;padding:clamp(22px,4vw,38px);box-shadow:0 12px 36px #1d284e0b}.card h1{font-size:clamp(2rem,5vw,2.8rem);line-height:1.15;letter-spacing:-.04em;margin:8px 0 14px}.intro{font-size:1.08rem;color:#46536d}.content-section{margin-top:16px;box-shadow:none}.content-section h2{font-size:1.2rem;line-height:1.3;margin:0 0 8px}.content-section p{margin:0;color:#536078}.back{display:inline-block;margin-top:26px}@media(max-width:520px){.wrap{padding:20px 14px 40px}.nav{gap:9px 13px}.card,.content-section{border-radius:14px}}</style></head><body><main class="wrap"><a class="brand" href="/" aria-label="Klypza home"><img src="/brand-wordmark.webp" alt="Klypza" width="190" height="52"></a><nav class="nav" aria-label="Main navigation">'+navHtml+'</nav><article class="card"><h1>'+esc(page.heading)+'</h1><p class="intro">'+esc(page.intro)+'</p></article>'+paragraphs+'<a class="back" href="/">← Back to Klypza home</a></main></body></html>';
-  return new Response(body,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'public,max-age=3600','x-content-type-options':'nosniff'}});
+  return new Response(body,{headers:securityHeaders({'content-type':'text/html; charset=utf-8','cache-control':'public,max-age=3600'})});
 }
 async function publicStats(env){if(!env.KLYPZA_DB)return json({users:0,downloads:0});const [u,d]=await Promise.all([env.KLYPZA_DB.prepare('SELECT COUNT(*) AS total FROM users').first(),env.KLYPZA_DB.prepare('SELECT COUNT(*) AS total FROM usage_events').first()]);return json({users:Number(u?.total||0),downloads:Number(d?.total||0)});}
 async function accountRouter(request, env, url) {
@@ -294,13 +294,13 @@ export default {
   const url = new URL(request.url);
   try {
     if (url.pathname === '/' || ['/login','/register','/dashboard','/plans'].includes(url.pathname)) {
-      return new Response(appPageHtml(url.pathname),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-cache'}});
+      return new Response(appPageHtml(url.pathname),{headers:securityHeaders({'content-type':'text/html; charset=utf-8','cache-control':'no-cache'})});
     }
     if (url.pathname === '/brand-icon.webp' || url.pathname === '/brand-wordmark.webp' || url.pathname === '/footer-wordmark-white.webp') {
       const assetName = url.pathname.slice(1);
       const asset = await fetch('https://raw.githubusercontent.com/Uzumasama/Klypza/main/public/' + assetName, { cf: { cacheTtl: 86400 } });
       if (!asset.ok) return new Response('Brand asset unavailable', { status: 404 });
-      return new Response(asset.body, { headers: { 'content-type': 'image/webp', 'cache-control': 'public,max-age=86400' } });
+      return new Response(asset.body, { headers: securityHeaders({ 'content-type': 'image/webp', 'cache-control': 'public,max-age=86400' }) });
     }
     if (url.pathname === '/hero-wordmark-v2.svg') return new Response(`<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="620" height="124" viewBox="0 0 620 124" role="img" aria-labelledby="title desc">
@@ -325,7 +325,7 @@ export default {
 <g transform="translate(4 8) scale(.92)"><path d="M5 31h19M1 48h22M7 65h17" fill="none" stroke="url(#icon)" stroke-width="6" stroke-linecap="round"/><path d="M31 13c0-8 9-13 16-9l44 29c12 8 12 26 0 34L47 96c-7 5-16 0-16-9V13Z" fill="url(#icon)"/><path d="M42 25c0-5 6-8 11-5l30 20c7 5 7 15 0 20L53 80c-5 3-11 0-11-6V25Z" fill="#10204F"/><path d="M60 29v24h-9l16 18 16-18h-9V29H60Z" fill="#fff"/></g>
 <text x="112" y="83" fill="#fff" font-family="Arial,Helvetica,sans-serif" font-size="78" font-weight="900" letter-spacing="-4">K</text><path d="M155 62l34 28h-29l-25-22z" fill="url(#kAccent)"/><text x="194" y="83" fill="#fff" font-family="Arial,Helvetica,sans-serif" font-size="78" font-weight="900" letter-spacing="-4">lypza</text></svg>`,{headers:{'content-type':'image/svg+xml; charset=utf-8','cache-control':'public,max-age=3600'}});
     if (url.pathname === '/klypza-mark.svg') return new Response("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\" role=\"img\" aria-label=\"Klypza download logo\">\n<defs><linearGradient id=\"brand\" x1=\"12\" y1=\"12\" x2=\"88\" y2=\"88\" gradientUnits=\"userSpaceOnUse\"><stop stop-color=\"#08D5EE\"/><stop offset=\".48\" stop-color=\"#0877F5\"/><stop offset=\"1\" stop-color=\"#A800ED\"/></linearGradient></defs>\n<path d=\"M5 31h19M1 48h22M7 65h17\" fill=\"none\" stroke=\"url(#brand)\" stroke-width=\"6\" stroke-linecap=\"round\"/>\n<path d=\"M31 13c0-8 9-13 16-9l44 29c12 8 12 26 0 34L47 96c-7 5-16 0-16-9V13Z\" fill=\"url(#brand)\"/>\n<path d=\"M42 25c0-5 6-8 11-5l30 20c7 5 7 15 0 20L53 80c-5 3-11 0-11-6V25Z\" fill=\"#10204F\" opacity=\".96\"/>\n<path d=\"M60 29v24h-9l16 18 16-18h-9V29H60Z\" fill=\"#fff\"/>\n</svg>",{headers:{'content-type':'image/svg+xml; charset=utf-8','cache-control':'public,max-age=3600'}});
-    if (url.pathname === '/robots.txt') return new Response('User-agent: *\nAllow: /\nSitemap: https://klypza.web.id/sitemap.xml\n',{headers:{'content-type':'text/plain; charset=utf-8'}});
+    if (url.pathname === '/robots.txt') return new Response('User-agent: *\nAllow: /\nSitemap: https://klypza.web.id/sitemap.xml\n',{headers:securityHeaders({'content-type':'text/plain; charset=utf-8','cache-control':'public,max-age=3600'})});
     if (url.pathname === '/sitemap.xml') return new Response('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://klypza.web.id/</loc></url><url><loc>https://klypza.web.id/plans</loc></url><url><loc>https://klypza.web.id/about</loc></url><url><loc>https://klypza.web.id/contact</loc></url><url><loc>https://klypza.web.id/privacy-policy</loc></url><url><loc>https://klypza.web.id/terms</loc></url><url><loc>https://klypza.web.id/copyright</loc></url></urlset>',{headers:{'content-type':'application/xml; charset=utf-8'}});
     if (['/about','/contact','/privacy-policy','/terms','/copyright'].includes(url.pathname)) return infoPageResponse(url.pathname.slice(1));
     if (url.pathname === '/api/public-stats' && request.method === 'GET') return await publicStats(env);
@@ -344,10 +344,10 @@ export default {
   },
 };
 
-function json(body, status = 200, extraHeaders = {}) {
+function securityHeaders(extra = {}) { return { 'x-content-type-options':'nosniff', 'x-frame-options':'DENY', 'referrer-policy':'strict-origin-when-cross-origin', 'permissions-policy':'camera=(), microphone=(), geolocation=()', 'strict-transport-security':'max-age=31536000', ...extra }; }\n\nfunction json(body, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...extraHeaders },
+    headers: securityHeaders({ 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...extraHeaders }),
   });
 }
 
