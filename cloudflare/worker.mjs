@@ -171,8 +171,16 @@ function appPageHtml(path) {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ currentPassword: current.value, newPassword: next.value })
       });
-      var data = await response.json();
-      if (!response.ok || !data.ok) throw new Error(data.message || 'Password could not be changed.');
+      var rawResponse = await response.text();
+      var data = {};
+      try { data = rawResponse ? JSON.parse(rawResponse) : {}; }
+      catch (parseError) {
+        throw new Error('Password request returned an unreadable response (HTTP ' + response.status + '). Please reload the page and try again.');
+      }
+      if (!response.ok || !data.ok) {
+        var serverMessage = typeof data.message === 'string' && data.message.trim() ? data.message.trim() : 'The server did not provide an error description.';
+        throw new Error('Request failed (HTTP ' + response.status + '): ' + serverMessage);
+      }
       form.reset();
       showMessage('Password changed successfully. Redirecting to login…', false);
       button.disabled = true;
