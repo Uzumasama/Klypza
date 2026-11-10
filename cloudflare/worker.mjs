@@ -265,7 +265,9 @@ async function registerAccount(request,env){
     throw err;
   }
   const sessionCookie=await createSession(id,env);
-  return json({ok:true,user:{id,email,name,credits:FREE_START_CREDITS,plan:'free'}},201,{'set-cookie':[sessionCookie,deviceCookie(deviceToken)]});
+  const response=json({ok:true,user:{id,email,name,credits:FREE_START_CREDITS,plan:'free'}},201,{'set-cookie':sessionCookie});
+  response.headers.append('set-cookie',deviceCookie(deviceToken));
+  return response;
 }
 async function loginAccount(request,env){
   const origin=request.headers.get('Origin'); if(origin&&origin!==new URL(request.url).origin)return json({message:'Request origin rejected.'},403);
