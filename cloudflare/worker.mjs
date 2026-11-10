@@ -44,6 +44,42 @@ function appPageHtml(path) {
   html = html.replace(/<meta property="og:url" content="[^"]*">/, '<meta property="og:url" content="' + base + '">');
   html = html.replace(/<meta property="og:title" content="[^"]*">/, '<meta property="og:title" content="' + title + '">');
   html = html.replace(/<meta property="og:description" content="[^"]*">/, '<meta property="og:description" content="' + description + '">');
+  if (path === '/dashboard') {
+    // Isolated dashboard-tab controller: it remains available even if another dashboard
+    // initializer fails, and is installed after the dashboard markup has been parsed.
+    const tabController = `<script>
+(function () {
+  function showKlypzaPanel(target) {
+    var ids = { overview: 'overviewPanel', profile: 'profilePanel', plans: 'plansPanel' };
+    if (!Object.prototype.hasOwnProperty.call(ids, target)) return;
+    Object.keys(ids).forEach(function (key) {
+      var panel = document.getElementById(ids[key]);
+      if (!panel) return;
+      panel.hidden = key !== target;
+      panel.style.display = key === target ? 'block' : 'none';
+    });
+    document.querySelectorAll('#dashboardCard .profile-tab').forEach(function (tab) {
+      var active = tab.getAttribute('data-panel') === target;
+      tab.classList.toggle('active', active);
+      tab.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+  }
+  window.klypzaShowPanel = showKlypzaPanel;
+  document.addEventListener('click', function (event) {
+    var node = event.target;
+    var tab = node && node.closest ? node.closest('#dashboardCard .profile-tab') : null;
+    if (!tab) return;
+    event.preventDefault();
+    showKlypzaPanel(tab.getAttribute('data-panel'));
+  }, true);
+  document.addEventListener('DOMContentLoaded', function () {
+    showKlypzaPanel('overview');
+  });
+  if (document.readyState !== 'loading') showKlypzaPanel('overview');
+})();
+</script>`;
+    html = html.replace('</body>', tabController + '</body>');
+  }
   return html;
 }
 
