@@ -60,18 +60,86 @@ function planLimits(plan){ return PLAN_LIMITS[String(plan||'free').toLowerCase()
 function utcDate(){ return new Date().toISOString().slice(0,10); }
 
 const INFO_PAGES = {
-  about: {title:'About Klypza',description:'Learn about Klypza, a simple video downloader for supported public social media videos.',heading:'About Klypza',body:'Klypza is an independent web service designed to make saving supported public video posts straightforward. It focuses on video links, clear plan limits, batch processing and convenient ZIP downloads. Klypza is not affiliated with TikTok, Instagram, Facebook, YouTube or Pinterest.'},
-  contact: {title:'Contact Klypza',description:'Contact the Klypza support team for account, service and copyright questions.',heading:'Contact Klypza',body:'For account support, questions about the service, privacy requests or copyright concerns, email klypza.contact@gmail.com. Please include the relevant page URL and a clear description of your request. Do not send passwords or payment card details by email.'},
-  'privacy-policy': {title:'Privacy Policy',description:'Read how Klypza handles account information, service usage and privacy requests.',heading:'Privacy Policy',body:'Klypza processes account details such as name and email address to provide account access, usage limits and support. Download activity may be recorded to enforce plan limits and show account history. Authentication sessions are stored securely. Klypza does not ask users to provide social media passwords. Do not submit private or sensitive personal information in video URLs. Contact klypza.contact@gmail.com for privacy questions or requests. This policy should be reviewed and updated before commercial launch to reflect final analytics, hosting and payment providers.'},
-  terms: {title:'Terms of Use',description:'Read the terms for using Klypza social video download services responsibly.',heading:'Terms of Use',body:'Use Klypza only for content you own or have permission to download. You are responsible for respecting copyright, privacy, platform rules and applicable laws. Do not use Klypza to access private content, bypass access controls, infringe rights, disrupt the service or misuse another person’s account. Features, supported links, limits and prices may change. Paid checkout is not currently enabled. Klypza is an independent service and is not endorsed by the social platforms it supports.'},
-  copyright: {title:'Copyright Policy',description:'Learn how to submit a copyright concern or removal request to Klypza.',heading:'Copyright Policy',body:'Klypza respects creators and intellectual property rights. The service is intended for users to save content they own or are authorized to download. If you believe a link, feature or material associated with Klypza infringes your rights, email klypza.contact@gmail.com with the relevant URL, a description of the work, your contact details and a statement explaining your rights and request. We will review properly submitted notices and take appropriate action.'}
+  about: {
+    title:'About Klypza',
+    description:'Discover Klypza, an independent online tool for processing supported public videos from popular social platforms.',
+    heading:'About Klypza',
+    intro:'Klypza is an independent browser-based service that helps people process links to supported public videos in one straightforward workflow.',
+    sections:[
+      {heading:'What Klypza does',text:'Klypza is designed for public video post links from TikTok, Instagram Reels, Facebook Reels, YouTube Shorts and Pinterest video Pins. Depending on the source and provider availability, users can process supported links, select available video files and organize results into ZIP downloads.'},
+      {heading:'A simple, transparent experience',text:'The service provides account access, usage information and plan limits so users can understand their available allowance. Features and source compatibility can vary because each social platform controls its own content and access.'},
+      {heading:'Independent service',text:'Klypza is not affiliated with, sponsored by or officially endorsed by TikTok, Instagram, Facebook, YouTube or Pinterest. Their names and trademarks belong to their respective owners.'},
+      {heading:'Responsible use',text:'Only process content you own or have permission to save. Respect creators, copyright, privacy, platform terms and applicable laws. Klypza is not intended to access private content or bypass access controls.'}
+    ]
+  },
+  contact: {
+    title:'Contact Klypza',
+    description:'Contact Klypza support for account access, service questions, privacy requests and copyright concerns.',
+    heading:'Contact Klypza',
+    intro:'For help with Klypza, send a clear description of your question or concern using the support email below.',
+    sections:[
+      {heading:'General support',text:'For account access, supported-link issues, service availability or questions about features, email klypza.contact@gmail.com. Include the page address and a brief description of what happened. Do not include your password, session cookies or payment card details.'},
+      {heading:'Privacy requests',text:'For questions about personal information or a privacy-related request, contact the same address and write “Privacy request” in the subject line. Include only the information needed to identify and understand your request.'},
+      {heading:'Copyright concerns',text:'If you believe material or a feature associated with Klypza infringes your rights, email the relevant URL, identify the work, explain your rights and describe the action you are requesting. See our Copyright Policy for further guidance.'},
+      {heading:'Email',text:'klypza.contact@gmail.com'}
+    ]
+  },
+  'privacy-policy': {
+    title:'Privacy Policy',
+    description:'Understand what account and service information Klypza processes, why it is used and how to contact us about privacy.',
+    heading:'Privacy Policy',
+    intro:'This policy explains the information Klypza processes when you visit the website or use account and video-processing features.',
+    sections:[
+      {heading:'Information you provide',text:'When you create an account, Klypza processes the name and email address you submit, together with authentication information needed to protect account access. Do not send passwords or sensitive personal information by email.'},
+      {heading:'Account, usage and download records',text:'Klypza records account and usage information needed to operate the service, apply daily and batch limits, show account activity and help investigate service issues. This may include the supported platform, submitted public video URL, processing result and usage event. Avoid submitting private links or URLs containing personal or confidential information.'},
+      {heading:'Cookies and sessions',text:'Klypza uses a session cookie to keep you signed in and protect account functions. The session cookie is used for authentication and is configured with security attributes. Your browser may allow you to control cookies, but disabling essential session cookies can prevent account features from working.'},
+      {heading:'Service providers and infrastructure',text:'Klypza uses Cloudflare infrastructure to deliver the website and process requests, and a configured third-party provider to process supported video links. Information necessary to perform a request may be transmitted to these providers. Their own privacy terms may also apply.'},
+      {heading:'Payments and advertising',text:'Paid checkout is not currently enabled. Do not send payment details to Klypza. Advertising or analytics features may change as the service develops; this policy should be updated before any such feature is activated.'},
+      {heading:'Retention and security',text:'Information is retained as needed to operate accounts, enforce usage limits, maintain service security and respond to support requests. Klypza uses technical safeguards, but no internet service can guarantee absolute security.'},
+      {heading:'Your choices and privacy requests',text:'You can contact klypza.contact@gmail.com to ask a privacy question or request help with account information. We may need to verify your request before taking action. Do not include your password or session credentials.'},
+      {heading:'Policy updates',text:'This policy may be updated as Klypza changes. The version published on this page is the current version available on the website.'}
+    ]
+  },
+  terms: {
+    title:'Terms of Use',
+    description:'Read the rules for using Klypza responsibly, including copyright, account security, supported content and service limitations.',
+    heading:'Terms of Use',
+    intro:'By accessing or using Klypza, you agree to use the service lawfully and responsibly. If you do not agree with these terms, do not use the service.',
+    sections:[
+      {heading:'Permitted use and responsibility',text:'Use Klypza only for public content that you own or are authorized to save. You are responsible for ensuring that your use respects copyright, privacy, platform terms and applicable laws.'},
+      {heading:'Prohibited activity',text:'Do not use Klypza to access private content, bypass access controls, infringe intellectual-property rights, violate another person’s privacy, misuse another person’s account, interfere with the service or attempt unauthorized access to systems or data.'},
+      {heading:'Accounts and security',text:'You are responsible for providing accurate account information and protecting your sign-in credentials. Notify Klypza if you believe your account has been used without permission. Never share your password or session cookie with support.'},
+      {heading:'Supported links and availability',text:'Klypza processes only supported public video links. Availability, formats and results depend on the source platform and the configured processing provider. A link may fail because it is private, removed, restricted, unsupported or temporarily unavailable. Klypza does not guarantee uninterrupted service or successful processing of every link.'},
+      {heading:'Usage limits and plans',text:'Account limits and available features are displayed on the website and may change. Standard and Premium checkout are not currently enabled, and no paid subscription can currently be purchased through Klypza.'},
+      {heading:'Third-party platforms',text:'Klypza is an independent service and is not affiliated with or endorsed by TikTok, Instagram, Facebook, YouTube or Pinterest. Your use of those platforms remains subject to their own terms.'},
+      {heading:'Changes and service limitations',text:'Klypza may update, suspend or discontinue features to maintain or improve the service, comply with law or address security and operational concerns.'},
+      {heading:'Contact',text:'Questions about these terms can be sent to klypza.contact@gmail.com.'}
+    ]
+  },
+  copyright: {
+    title:'Copyright Policy',
+    description:'Learn how rights holders can report copyright concerns involving Klypza and what information to include.',
+    heading:'Copyright Policy',
+    intro:'Klypza respects creators and intellectual-property rights. The service is intended for users to process content they own or are authorized to save.',
+    sections:[
+      {heading:'Your responsibility',text:'Before processing a video, make sure you own it or have permission to save it. Do not use Klypza to infringe copyright, violate license terms or distribute material unlawfully.'},
+      {heading:'Submit a copyright concern',text:'If you believe a URL, feature or material associated with Klypza infringes your rights, email klypza.contact@gmail.com. Include the location of the material, identify the copyrighted work, explain your ownership or authority to act, describe why you believe there is infringement and state the action you are requesting.'},
+      {heading:'Good-faith and accurate notices',text:'Please provide accurate information and contact details so the concern can be reviewed. Do not submit passwords, payment card details or unrelated sensitive information. We may request clarification when a report does not contain enough information to assess it.'},
+      {heading:'Review',text:'Klypza will review properly submitted concerns and take appropriate action where warranted. Submitting a report does not guarantee a particular outcome or response time.'},
+      {heading:'Contact',text:'Copyright concerns should be sent to klypza.contact@gmail.com with “Copyright concern” in the subject line.'}
+    ]
+  }
 };
 function infoPageResponse(slug){
   const page=INFO_PAGES[slug]; if(!page)return null;
   const base='https://klypza.web.id/'+slug;
   const esc=(v)=>String(v).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  const body='<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+esc(page.title)+' | Klypza</title><meta name="description" content="'+esc(page.description)+'"><meta name="robots" content="index,follow"><link rel="canonical" href="'+base+'"><meta name="theme-color" content="#111936"><link rel="icon" href="/klypza-mark.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/klypza-mark.svg"><style>body{margin:0;background:#f7f8fd;color:#111936;font:16px/1.7 system-ui,sans-serif}.wrap{max-width:760px;margin:8vh auto;padding:28px}.card{background:white;border:1px solid #e5e8f2;border-radius:22px;padding:clamp(24px,5vw,48px);box-shadow:0 18px 50px #1d284e12}a{color:#642bdd}.brand{display:inline-flex;align-items:center;text-decoration:none}.brand img{display:block;width:190px;height:auto;max-height:56px;object-fit:contain}h1{line-height:1.2;margin-top:32px}p{color:#4f5b74}.back{display:inline-block;margin-top:20px;font-weight:700}</style></head><body><main class="wrap"><a class="brand" href="/" aria-label="Klypza home"><img src="/brand-wordmark.webp" alt="Klypza" width="190" height="52"></a><article class="card"><h1>'+esc(page.heading)+'</h1><p>'+esc(page.body)+'</p><a class="back" href="/">← Back to Klypza</a></article></main></body></html>';
-  return new Response(body,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'public,max-age=3600'}});
+  const paragraphs=(page.sections||[]).map(section=>'<section class="content-section"><h2>'+esc(section.heading)+'</h2><p>'+esc(section.text)+'</p></section>').join('');
+  const nav=[['Home','/'],['Plans','/plans'],['About','/about'],['Contact','/contact'],['Privacy','/privacy-policy'],['Terms','/terms'],['Copyright','/copyright']];
+  const navHtml=nav.map(([label,path])=>'<a href="'+path+'"'+(path==='/'+slug?' aria-current="page"':'')+'>'+label+'</a>').join('');
+  const schema=JSON.stringify({'@context':'https://schema.org','@type':'WebPage','name':page.title+' | Klypza','url':base,'description':page.description,'isPartOf':{'@type':'WebSite','name':'Klypza','url':'https://klypza.web.id/'}});
+  const body='<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+esc(page.title)+' | Klypza</title><meta name="description" content="'+esc(page.description)+'"><meta name="robots" content="index,follow,max-image-preview:large"><link rel="canonical" href="'+base+'"><meta property="og:type" content="website"><meta property="og:site_name" content="Klypza"><meta property="og:url" content="'+base+'"><meta property="og:title" content="'+esc(page.title)+' | Klypza"><meta property="og:description" content="'+esc(page.description)+'"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="'+esc(page.title)+' | Klypza"><meta name="twitter:description" content="'+esc(page.description)+'"><meta name="theme-color" content="#111936"><link rel="icon" href="/brand-icon.webp?v=2" type="image/webp"><link rel="apple-touch-icon" href="/brand-icon.webp?v=2"><script type="application/ld+json">'+schema+'</script><style>*{box-sizing:border-box}body{margin:0;background:#f7f8fd;color:#111936;font:16px/1.7 system-ui,-apple-system,"Segoe UI",sans-serif}.wrap{max-width:900px;margin:0 auto;padding:28px 22px 56px}.brand{display:inline-flex;align-items:center;text-decoration:none}.brand img{display:block;width:190px;height:auto;max-height:56px;object-fit:contain}.nav{display:flex;flex-wrap:wrap;gap:10px 18px;margin:22px 0 34px;padding:14px 0;border-top:1px solid #e5e8f2;border-bottom:1px solid #e5e8f2}.nav a,.back{color:#245fc5;font-weight:650;text-decoration:none}.nav a[aria-current=page]{color:#111936;text-decoration:underline;text-underline-offset:5px}.card,.content-section{background:#fff;border:1px solid #e5e8f2;border-radius:18px;padding:clamp(22px,4vw,38px);box-shadow:0 12px 36px #1d284e0b}.card h1{font-size:clamp(2rem,5vw,2.8rem);line-height:1.15;letter-spacing:-.04em;margin:8px 0 14px}.intro{font-size:1.08rem;color:#46536d}.content-section{margin-top:16px;box-shadow:none}.content-section h2{font-size:1.2rem;line-height:1.3;margin:0 0 8px}.content-section p{margin:0;color:#536078}.back{display:inline-block;margin-top:26px}@media(max-width:520px){.wrap{padding:20px 14px 40px}.nav{gap:9px 13px}.card,.content-section{border-radius:14px}}</style></head><body><main class="wrap"><a class="brand" href="/" aria-label="Klypza home"><img src="/brand-wordmark.webp" alt="Klypza" width="190" height="52"></a><nav class="nav" aria-label="Main navigation">'+navHtml+'</nav><article class="card"><h1>'+esc(page.heading)+'</h1><p class="intro">'+esc(page.intro)+'</p></article>'+paragraphs+'<a class="back" href="/">← Back to Klypza home</a></main></body></html>';
+  return new Response(body,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'public,max-age=3600','x-content-type-options':'nosniff'}});
 }
 async function publicStats(env){if(!env.KLYPZA_DB)return json({users:0,downloads:0});const [u,d]=await Promise.all([env.KLYPZA_DB.prepare('SELECT COUNT(*) AS total FROM users').first(),env.KLYPZA_DB.prepare('SELECT COUNT(*) AS total FROM usage_events').first()]);return json({users:Number(u?.total||0),downloads:Number(d?.total||0)});}
 async function accountRouter(request, env, url) {
