@@ -116,7 +116,31 @@ function appPageHtml(path) {
   else loadProfileData();
 })();
 </script>`;
-    html = html.replace('</body>', tabController + profileDataController + '</body>');
+    const passwordToggleController = `<script>
+(function () {
+  function handlePasswordToggle(event) {
+    var button = event.target && event.target.closest ? event.target.closest('button[data-toggle-password]') : null;
+    if (!button) return;
+    var id = button.getAttribute('data-toggle-password');
+    var input = document.getElementById(id);
+    if (!input) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+    var show = input.getAttribute('type') === 'password';
+    input.setAttribute('type', show ? 'text' : 'password');
+    input.type = show ? 'text' : 'password';
+    button.textContent = show ? 'Hide' : 'Show';
+    button.setAttribute('aria-pressed', show ? 'true' : 'false');
+    button.setAttribute('aria-label', (show ? 'Hide' : 'Show') + ' password');
+  }
+  document.addEventListener('click', handlePasswordToggle, true);
+  document.addEventListener('pointerup', function (event) {
+    if (event.pointerType === 'touch') handlePasswordToggle(event);
+  }, true);
+})();
+</script>`;
+    html = html.replace('</body>', tabController + profileDataController + passwordToggleController + '</body>');
   }
   return html;
 }
