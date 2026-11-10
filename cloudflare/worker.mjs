@@ -344,7 +344,9 @@ export default {
   },
 };
 
-function securityHeaders(extra = {}) { return { 'x-content-type-options':'nosniff', 'x-frame-options':'DENY', 'referrer-policy':'strict-origin-when-cross-origin', 'permissions-policy':'camera=(), microphone=(), geolocation=()', 'strict-transport-security':'max-age=31536000', ...extra }; }\n\nfunction json(body, status = 200, extraHeaders = {}) {
+function securityHeaders(extra = {}) { return { 'x-content-type-options':'nosniff', 'x-frame-options':'DENY', 'referrer-policy':'strict-origin-when-cross-origin', 'permissions-policy':'camera=(), microphone=(), geolocation=()', 'strict-transport-security':'max-age=31536000', ...extra }; }
+
+function json(body, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(body), {
     status,
     headers: securityHeaders({ 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...extraHeaders }),
