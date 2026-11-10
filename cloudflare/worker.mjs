@@ -631,7 +631,7 @@ export default {
     if (['/about','/contact','/privacy-policy','/terms','/copyright'].includes(url.pathname)) return infoPageResponse(url.pathname.slice(1));
     if (url.pathname === '/api/public-stats' && request.method === 'GET') return await publicStats(env);
     if(url.pathname==='/api/auth/verify-email' && request.method==='GET') return await verifyEmailToken(url,env);
-    if (url.pathname.startsWith('/api/auth/') || url.pathname === '/api/account' || url.pathname === '/api/plans' || url.pathname === '/api/batch/start') {
+    if (url.pathname.startsWith('/api/auth/') || url.pathname === '/api/account' || url.pathname === '/api/account/password' || url.pathname === '/api/plans' || url.pathname === '/api/batch/start') {
       const response=await accountRouter(request,env,url); if(response)return response;
     }
     if (url.pathname === '/api/health') return health(env);
