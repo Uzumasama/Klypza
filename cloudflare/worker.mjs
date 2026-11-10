@@ -92,7 +92,7 @@ const INFO_PAGES = {
     sections:[
       {heading:'Information you provide',text:'When you create an account, Klypza processes the name and email address you submit, together with authentication information needed to protect account access. Do not send passwords or sensitive personal information by email.'},
       {heading:'Account, usage and download records',text:'Klypza records account and usage information needed to operate the service, apply daily and batch limits, show account activity and help investigate service issues. This may include the supported platform, submitted public video URL, processing result and usage event. Avoid submitting private links or URLs containing personal or confidential information.'},
-      {heading:'Cookies and sessions',text:'Klypza uses a session cookie to keep you signed in and protect account functions. The session cookie is used for authentication and is configured with security attributes. Your browser may allow you to control cookies, but disabling essential session cookies can prevent account features from working.'},
+      {heading:'Cookies and sessions',text:'Klypza uses a session cookie to keep you signed in and a separate secure device cookie to help enforce the one-Free-account-per-device limit. A hashed device identifier is stored with the Free account; Klypza does not read email accounts stored on your device or use invasive device fingerprinting for this feature. Clearing cookies, changing browsers or using private browsing may cause a device to be treated as new. Standard and Premium accounts are not subject to this Free-plan device limit. Disabling essential cookies can prevent account features from working.'},
       {heading:'Service providers and infrastructure',text:'Klypza uses Cloudflare infrastructure to deliver the website and process requests, and a configured third-party provider to process supported video links. Information necessary to perform a request may be transmitted to these providers. Their own privacy terms may also apply.'},
       {heading:'Payments and advertising',text:'Paid checkout is not currently enabled. Do not send payment details to Klypza. Advertising or analytics features may change as the service develops; this policy should be updated before any such feature is activated.'},
       {heading:'Retention and security',text:'Information is retained as needed to operate accounts, enforce usage limits, maintain service security and respond to support requests. Klypza uses technical safeguards, but no internet service can guarantee absolute security.'},
@@ -205,6 +205,16 @@ function cookieToken(request){
   try { return decodeURIComponent(found.slice(SESSION_COOKIE.length+1)); }
   catch { return ''; }
 }
+const DEVICE_COOKIE='klypza_device';
+function cookieValue(request,name){
+  const raw=request.headers.get('Cookie')||'';
+  const found=raw.split(';').map(x=>x.trim()).find(x=>x.startsWith(name+'='));
+  if(!found)return '';
+  try{return decodeURIComponent(found.slice(name.length+1));}catch{return '';}
+}
+function deviceCookie(token){
+  return DEVICE_COOKIE+'='+encodeURIComponent(token)+'; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=31536000';
+}
 function randomToken(){
   const bytes=crypto.getRandomValues(new Uint8Array(32));
   return btoa(String.fromCharCode(...bytes)).replaceAll('+','-').replaceAll('/','_').replace(/=+$/,'');
@@ -237,11 +247,25 @@ async function registerAccount(request,env){
   if(password.length<10||password.length>128)return json({message:'Password must contain 10–128 characters.'},400);
   const existing=await env.KLYPZA_DB.prepare('SELECT id FROM users WHERE email=?').bind(email).first();
   if(existing)return json({message:'An account with this email already exists. Log in instead.'},409);
+  // Bind one free registration to one browser device token. Only a hash is stored.
+  const deviceToken=cookieValue(request,DEVICE_COOKIE)||randomToken();
+  const deviceHash=await sha256(deviceToken);
+  const claimed=await env.KLYPZA_DB.prepare("SELECT c.user_id FROM free_device_claims c JOIN users u ON u.id=c.user_id WHERE c.device_hash=? AND u.plan='free'").bind(deviceHash).first();
+  if(claimed)return json({message:'This device already has a Free account. Please log in to your existing account. Standard and Premium accounts are not subject to this device limit.'},409,{'set-cookie':deviceCookie(deviceToken)});
   const id=crypto.randomUUID(),salt=randomToken(),hash=await passwordHash(password,salt);
-  await env.KLYPZA_DB.prepare('INSERT INTO users(id,email,display_name,password_hash,password_salt,credits,plan) VALUES(?,?,?,?,?,?,?)').bind(id,email,name,hash,salt,FREE_START_CREDITS,'free').run();
-  await env.KLYPZA_DB.prepare('INSERT INTO credit_transactions(id,user_id,amount,balance_after,reason) VALUES(?,?,?,?,?)').bind(crypto.randomUUID(),id,FREE_START_CREDITS,FREE_START_CREDITS,'welcome_credits').run();
-  const cookie=await createSession(id,env);
-  return json({ok:true,user:{id,email,name,credits:FREE_START_CREDITS,plan:'free'}},201,{'set-cookie':cookie});
+  try {
+    await env.KLYPZA_DB.batch([
+      env.KLYPZA_DB.prepare('INSERT INTO free_device_claims(device_hash,user_id,created_at) VALUES(?,?,?)').bind(deviceHash,id,new Date().toISOString()),
+      env.KLYPZA_DB.prepare('INSERT INTO users(id,email,display_name,password_hash,password_salt,credits,plan) VALUES(?,?,?,?,?,?,?)').bind(id,email,name,hash,salt,FREE_START_CREDITS,'free'),
+      env.KLYPZA_DB.prepare('INSERT INTO credit_transactions(id,user_id,amount,balance_after,reason) VALUES(?,?,?,?,?)').bind(crypto.randomUUID(),id,FREE_START_CREDITS,FREE_START_CREDITS,'welcome_credits')
+    ]);
+  } catch(err) {
+    const duplicate=await env.KLYPZA_DB.prepare("SELECT c.user_id FROM free_device_claims c JOIN users u ON u.id=c.user_id WHERE c.device_hash=? AND u.plan='free'").bind(deviceHash).first();
+    if(duplicate)return json({message:'This device already has a Free account. Please log in to your existing account.'},409,{'set-cookie':deviceCookie(deviceToken)});
+    throw err;
+  }
+  const sessionCookie=await createSession(id,env);
+  return json({ok:true,user:{id,email,name,credits:FREE_START_CREDITS,plan:'free'}},201,{'set-cookie':[sessionCookie,deviceCookie(deviceToken)]});
 }
 async function loginAccount(request,env){
   const origin=request.headers.get('Origin'); if(origin&&origin!==new URL(request.url).origin)return json({message:'Request origin rejected.'},403);
