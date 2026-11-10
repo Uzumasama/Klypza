@@ -508,7 +508,12 @@ async function completePasswordReset(request,env){
  const hash=await sha256(token),row=await env.KLYPZA_DB.prepare('SELECT user_id FROM password_reset_tokens WHERE token_hash=? AND expires_at>?').bind(hash,new Date().toISOString()).first();
  if(!row)return json({message:'Reset link expired or already used. Request a new link.'},400);
  const salt=randomToken(),passwordHashValue=await passwordHash(password,salt);
- await env.KLYPZA_DB.batch([env.KLYPZA_DB.prepare('UPDATE users SET password_hash=?,password_salt=? WHERE id=?').bind(passwordHashValue,salt,row.user_id),env.KLYPZA_DB.prepare('DELETE FROM password_reset_tokens WHERE user_id=?').bind(row.user_id),env.KLYPZA_DB.prepare('DELETE FROM sessions WHERE user_id=?').bind(row.user_id)]);
+ const results=await env.KLYPZA_DB.batch([
+  env.KLYPZA_DB.prepare('UPDATE users SET password_hash=?,password_salt=? WHERE id=(SELECT user_id FROM password_reset_tokens WHERE token_hash=? AND expires_at>?)').bind(passwordHashValue,salt,hash,new Date().toISOString()),
+  env.KLYPZA_DB.prepare('DELETE FROM sessions WHERE user_id=(SELECT user_id FROM password_reset_tokens WHERE token_hash=? AND expires_at>?)').bind(hash,new Date().toISOString()),
+  env.KLYPZA_DB.prepare('DELETE FROM password_reset_tokens WHERE token_hash=?').bind(hash)
+ ]);
+ if(!results[0] || Number(results[0].meta?.changes||0)!==1)return json({message:'Reset link expired or already used. Request a new link.'},400);
  return json({ok:true,message:'Password updated. Please log in with your new password.'});
 }
 function resetPasswordPage(url){
@@ -520,10 +525,22 @@ async function loginAccount(request,env){
   const origin=request.headers.get('Origin'); if(origin&&origin!==new URL(request.url).origin)return json({message:'Request origin rejected.'},403);
   const data=await readJson(request); const email=String(data?.email||'').trim().toLowerCase(); const password=String(data?.password||'');
   if(!email||!password)return json({message:'Enter your email and password.'},400);
+  await env.KLYPZA_DB.prepare("CREATE TABLE IF NOT EXISTS auth_login_attempts (ip_hash TEXT PRIMARY KEY, window_started_at TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0)").run();
+  const ip= request.headers.get('CF-Connecting-IP') || 'unknown';
+  const ipHash=await sha256('klypza-login:'+ip);
+  const now=Date.now(), windowStart=new Date(now-15*60*1000).toISOString();
+  const attempt=await env.KLYPZA_DB.prepare('SELECT window_started_at,attempts FROM auth_login_attempts WHERE ip_hash=?').bind(ipHash).first();
+  if(attempt && new Date(attempt.window_started_at).getTime()>now-15*60*1000 && Number(attempt.attempts)>=10){
+    return json({message:'Too many unsuccessful login attempts. Please wait 15 minutes before trying again.'},429);
+  }
   const user=await env.KLYPZA_DB.prepare('SELECT id,email,display_name,password_hash,password_salt,credits,plan,email_verified FROM users WHERE email=?').bind(email).first();
-  if(!user)return json({message:'Email or password is incorrect.'},401);
-  const actual=await passwordHash(password,user.password_salt);
-  if(actual!==user.password_hash)return json({message:'Email or password is incorrect.'},401);
+  const actual=user?await passwordHash(password,user.password_salt):'';
+  if(!user||actual!==user.password_hash){
+    const timestamp=new Date(now).toISOString();
+    await env.KLYPZA_DB.prepare("INSERT INTO auth_login_attempts(ip_hash,window_started_at,attempts) VALUES(?,?,1) ON CONFLICT(ip_hash) DO UPDATE SET attempts=CASE WHEN auth_login_attempts.window_started_at<=? THEN 1 ELSE auth_login_attempts.attempts+1 END,window_started_at=CASE WHEN auth_login_attempts.window_started_at<=? THEN excluded.window_started_at ELSE auth_login_attempts.window_started_at END").bind(ipHash,timestamp,windowStart,windowStart).run();
+    return json({message:'Email or password is incorrect.'},401);
+  }
+  await env.KLYPZA_DB.prepare('DELETE FROM auth_login_attempts WHERE ip_hash=?').bind(ipHash).run();
   const cookie=await createSession(user.id,env);
   return json({ok:true,user:publicUser(user)},200,{'set-cookie':cookie});
 }
