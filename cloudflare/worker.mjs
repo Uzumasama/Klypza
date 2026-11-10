@@ -533,8 +533,12 @@ async function changeAccountPassword(request,env){
   const row=await env.KLYPZA_DB.prepare('SELECT password_hash,password_salt FROM users WHERE id=?').bind(user.id).first();
   if(!row||await passwordHash(current,row.password_salt)!==row.password_hash)return json({message:'Your current password is incorrect.'},401);
   const salt=randomToken(),hash=await passwordHash(next,salt);
-  const update=await env.KLYPZA_DB.prepare('UPDATE users SET password_hash=?,password_salt=? WHERE id=?').bind(hash,salt,user.id).run();
-  if(!update.meta || Number(update.meta.changes)!==1) return json({message:'Password could not be saved. Please try again.'},500);
+  await env.KLYPZA_DB.prepare('UPDATE users SET password_hash=?,password_salt=? WHERE id=?').bind(hash,salt,user.id).run();
+  const saved=await env.KLYPZA_DB.prepare('SELECT password_hash,password_salt FROM users WHERE id=?').bind(user.id).first();
+  if(!saved || saved.password_hash!==hash || saved.password_salt!==salt) {
+    console.error('Password update verification failed for account', user.id);
+    return json({message:'The password change was not confirmed by the database. No sessions were ended. Please try again.'},500);
+  }
   await env.KLYPZA_DB.prepare('DELETE FROM sessions WHERE user_id=?').bind(user.id).run();
   return json({ok:true,message:'Your password has been changed successfully. Please log in again using your new password.'},200,{'set-cookie':SESSION_COOKIE+'=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0'});
 }
