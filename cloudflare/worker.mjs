@@ -189,12 +189,21 @@ async function checkDownloadAllowance(user,env,batchId){
 }
 function publicUser(u){return {id:u.id,email:u.email,name:u.display_name,credits:Number(u.credits),plan:u.plan};}
 async function readJson(request){
-  try { const data=await request.json(); return data&&typeof data==='object'?data:null; } catch { return null; }
+  try {
+    const declared=Number(request.headers.get('Content-Length')||0);
+    if(declared>16384)return null;
+    const raw=await request.text();
+    if(new TextEncoder().encode(raw).length>16384)return null;
+    const data=JSON.parse(raw);
+    return data&&typeof data==='object'&&!Array.isArray(data)?data:null;
+  } catch { return null; }
 }
 function cookieToken(request){
   const raw=request.headers.get('Cookie')||'';
   const found=raw.split(';').map(x=>x.trim()).find(x=>x.startsWith(SESSION_COOKIE+'='));
-  return found?decodeURIComponent(found.slice(SESSION_COOKIE.length+1)):'';
+  if(!found)return '';
+  try { return decodeURIComponent(found.slice(SESSION_COOKIE.length+1)); }
+  catch { return ''; }
 }
 function randomToken(){
   const bytes=crypto.getRandomValues(new Uint8Array(32));
