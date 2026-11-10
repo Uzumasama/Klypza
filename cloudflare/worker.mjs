@@ -78,7 +78,45 @@ function appPageHtml(path) {
   if (document.readyState !== 'loading') showKlypzaPanel('overview');
 })();
 </script>`;
-    html = html.replace('</body>', tabController + '</body>');
+    const profileDataController = `<script>
+(function () {
+  function setText(id, value) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = value == null || value === '' ? 'Not available' : String(value);
+  }
+  function loadProfileData() {
+    fetch('/api/account', { cache: 'no-store', credentials: 'same-origin' })
+      .then(function (response) {
+        if (!response.ok) throw new Error('Account data could not be loaded (' + response.status + ').');
+        return response.json();
+      })
+      .then(function (data) {
+        var user = data && data.user;
+        if (!user) throw new Error('Account information is missing from the server response.');
+        setText('profileName', user.name || user.display_name || 'Member');
+        setText('profileEmail', user.email);
+        setText('profileLevel', String(user.plan || 'free').toUpperCase());
+        setText('plansCurrentLevel', String(user.plan || 'free').toUpperCase());
+        setText('profileStatus', user.emailVerified === true || user.email_verified === 1 ? 'Verified' : 'Email not verified');
+        var joined = user.createdAt || user.created_at;
+        setText('profileJoined', joined ? new Date(joined).toLocaleDateString() : 'Not available');
+        if (data.quota) {
+          setText('membershipDaily', data.quota.dailyLimit + ' videos per day');
+          setText('membershipBatch', data.quota.maxBatch + ' videos per batch');
+        }
+        var sub = data.subscription || null;
+        setText('membershipStatus', sub && sub.status === 'active' ? 'Active' : 'No paid subscription');
+        setText('membershipEnd', sub && sub.current_period_end ? new Date(sub.current_period_end).toLocaleDateString() : 'Not applicable');
+      })
+      .catch(function (error) {
+        setText('profileStatus', error.message || 'Unable to load account status');
+      });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', loadProfileData);
+  else loadProfileData();
+})();
+</script>`;
+    html = html.replace('</body>', tabController + profileDataController + '</body>');
   }
   return html;
 }
