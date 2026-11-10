@@ -137,7 +137,55 @@ function appPageHtml(path) {
   document.addEventListener('click', handlePasswordToggle, true);
 })();
 </script>`;
-    html = html.replace('</body>', tabController + profileDataController + passwordToggleController + '</body>');
+    const passwordChangeController = `<script>
+(function () {
+  function showMessage(message, isError) {
+    var node = document.getElementById('changePasswordMessage');
+    if (node) {
+      node.textContent = message;
+      node.setAttribute('role', 'alert');
+      node.style.color = isError ? '#b42318' : '#167647';
+    }
+  }
+  async function submitPasswordChange(event) {
+    var form = event.target && event.target.closest ? event.target.closest('#changePasswordForm') : null;
+    if (!form) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+    var current = document.getElementById('currentPassword');
+    var next = document.getElementById('newPassword');
+    var confirm = document.getElementById('confirmPassword');
+    var button = document.getElementById('changePasswordButton');
+    if (!current || !next || !confirm || !button) return;
+    if (next.value !== confirm.value) {
+      showMessage('The new passwords do not match.', true);
+      return;
+    }
+    button.disabled = true;
+    showMessage('Saving your new password…', false);
+    try {
+      var response = await fetch('/api/account/password', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ currentPassword: current.value, newPassword: next.value })
+      });
+      var data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.message || 'Password could not be changed.');
+      form.reset();
+      showMessage('Password changed successfully. Redirecting to login…', false);
+      button.disabled = true;
+      window.setTimeout(function () { window.location.replace('/login?password_changed=1'); }, 1200);
+    } catch (error) {
+      showMessage(error.message || 'Password could not be changed. Please try again.', true);
+      button.disabled = false;
+    }
+  }
+  document.addEventListener('submit', submitPasswordChange, true);
+})();
+</script>`;
+    html = html.replace('</body>', tabController + profileDataController + passwordToggleController + passwordChangeController + '</body>');
   }
   return html;
 }
@@ -485,9 +533,10 @@ async function changeAccountPassword(request,env){
   const row=await env.KLYPZA_DB.prepare('SELECT password_hash,password_salt FROM users WHERE id=?').bind(user.id).first();
   if(!row||await passwordHash(current,row.password_salt)!==row.password_hash)return json({message:'Your current password is incorrect.'},401);
   const salt=randomToken(),hash=await passwordHash(next,salt);
-  await env.KLYPZA_DB.prepare('UPDATE users SET password_hash=?,password_salt=? WHERE id=?').bind(hash,salt,user.id).run();
-  const token=cookieToken(request); if(token)await env.KLYPZA_DB.prepare('DELETE FROM sessions WHERE user_id=? AND token_hash<>?').bind(user.id,await sha256(token)).run();
-  return json({ok:true,message:'Password updated. Other signed-in devices have been logged out.'});
+  const update=await env.KLYPZA_DB.prepare('UPDATE users SET password_hash=?,password_salt=? WHERE id=?').bind(hash,salt,user.id).run();
+  if(!update.meta || Number(update.meta.changes)!==1) return json({message:'Password could not be saved. Please try again.'},500);
+  await env.KLYPZA_DB.prepare('DELETE FROM sessions WHERE user_id=?').bind(user.id).run();
+  return json({ok:true,message:'Your password has been changed successfully. Please log in again using your new password.'},200,{'set-cookie':SESSION_COOKIE+'=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0'});
 }
 async function accountOverview(request,env){
   const user=await getSessionUser(request,env); if(!user)return json({message:'Please log in to view your dashboard.'},401);
