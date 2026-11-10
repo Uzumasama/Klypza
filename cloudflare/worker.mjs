@@ -255,8 +255,8 @@ async function registerAccount(request,env){
   const id=crypto.randomUUID(),salt=randomToken(),hash=await passwordHash(password,salt);
   try {
     await env.KLYPZA_DB.batch([
-      env.KLYPZA_DB.prepare('INSERT INTO free_device_claims(device_hash,user_id,created_at) VALUES(?,?,?)').bind(deviceHash,id,new Date().toISOString()),
       env.KLYPZA_DB.prepare('INSERT INTO users(id,email,display_name,password_hash,password_salt,credits,plan) VALUES(?,?,?,?,?,?,?)').bind(id,email,name,hash,salt,FREE_START_CREDITS,'free'),
+      env.KLYPZA_DB.prepare('INSERT INTO free_device_claims(device_hash,user_id,created_at) VALUES(?,?,?)').bind(deviceHash,id,new Date().toISOString()),
       env.KLYPZA_DB.prepare('INSERT INTO credit_transactions(id,user_id,amount,balance_after,reason) VALUES(?,?,?,?,?)').bind(crypto.randomUUID(),id,FREE_START_CREDITS,FREE_START_CREDITS,'welcome_credits')
     ]);
   } catch(err) {
