@@ -100,10 +100,18 @@ function appPageHtml(path) {
         setText('profileStatus', user.emailVerified === true || user.email_verified === 1 ? 'Verified' : 'Email not verified');
         var joined = user.createdAt || user.created_at;
         setText('profileJoined', joined ? new Date(joined).toLocaleDateString() : 'Not available');
-        if (data.quota) {
-          setText('membershipDaily', data.quota.dailyLimit + ' videos per day');
-          setText('membershipBatch', data.quota.maxBatch + ' videos per batch');
-        }
+        var quota = data.quota || {};
+        var plan = String(user.plan || 'free').toLowerCase();
+        var dailyLimit = Number(quota.dailyLimit);
+        if (!Number.isFinite(dailyLimit) || dailyLimit <= 0) dailyLimit = plan === 'premium' ? 150 : plan === 'standard' ? 90 : 10;
+        var usedToday = Number(quota.usedToday);
+        if (!Number.isFinite(usedToday) || usedToday < 0) usedToday = 0;
+        var remaining = Number(quota.remaining);
+        if (!Number.isFinite(remaining) || remaining < 0) remaining = Math.max(0, dailyLimit - usedToday);
+        setText('dashCredits', remaining + ' / ' + dailyLimit);
+        setText('dashQuotaText', remaining + ' downloads remaining · ' + usedToday + ' used today · Resets at 00:00 UTC.');
+        setText('membershipDaily', dailyLimit + ' videos per day');
+        setText('membershipBatch', (Number(quota.maxBatch) || (plan === 'premium' ? 25 : plan === 'standard' ? 15 : 5)) + ' videos per batch');
         var sub = data.subscription || null;
         setText('membershipStatus', sub && sub.status === 'active' ? 'Active' : 'No paid subscription');
         setText('membershipEnd', sub && sub.current_period_end ? new Date(sub.current_period_end).toLocaleDateString() : 'Not applicable');
