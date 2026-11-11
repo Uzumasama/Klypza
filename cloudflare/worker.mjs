@@ -404,7 +404,8 @@ async function registerAccount(request,env){
   const origin=request.headers.get('Origin'); if(origin&&origin!==new URL(request.url).origin)return json({message:'Request origin rejected.'},403);
   if(!env.RESEND_API_KEY)return json({message:'Email verification is temporarily unavailable. Please try again later.'},503);
   const data=await readJson(request); const email=String(data?.email||'').trim().toLowerCase();
-  const password=String(data?.password||''); const name=String(data?.name||'').trim();\n  if(name.length<2||name.length>60)return json({message:'Please enter your name (2–60 characters).'},400);
+  const password=String(data?.password||''); const name=String(data?.name||'').trim();
+  if(name.length<2||name.length>60)return json({message:'Please enter your name (2–60 characters).'},400);
   if(!email || email.length>190 || email.includes(' ') || !email.includes('@') || email.lastIndexOf('.')<email.indexOf('@')+2)return json({message:'Enter a valid email address.'},400);
   if(password.length<10||password.length>128)return json({message:'Password must contain 10–128 characters.'},400);
   const existing=await env.KLYPZA_DB.prepare('SELECT id FROM users WHERE email=?').bind(email).first();
