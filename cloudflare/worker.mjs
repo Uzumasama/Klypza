@@ -541,10 +541,13 @@ async function loginAccount(request,env){
     return json({message:'Email or password is incorrect.'},401);
   }
   await env.KLYPZA_DB.prepare('DELETE FROM auth_login_attempts WHERE ip_hash=?').bind(ipHash).run();
+  await env.KLYPZA_DB.prepare('DELETE FROM sessions WHERE user_id=? AND expires_at<=?').bind(user.id,new Date().toISOString()).run();
   const cookie=await createSession(user.id,env);
   return json({ok:true,user:publicUser(user)},200,{'set-cookie':cookie});
 }
 async function logoutAccount(request,env){
+  const origin=request.headers.get('Origin');
+  if(origin && origin!==new URL(request.url).origin)return json({message:'Request origin rejected.'},403);
   const token=cookieToken(request);
   if(token){await env.KLYPZA_DB.prepare('DELETE FROM sessions WHERE token_hash=?').bind(await sha256(token)).run();}
   return json({ok:true},200,{'set-cookie':SESSION_COOKIE+'=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0'});
