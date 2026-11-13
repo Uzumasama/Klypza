@@ -29,10 +29,12 @@ test.describe('Klypza public website', () => {
     expect(dimensions.document).toBeLessThanOrEqual(dimensions.viewport + 2);
   });
 
-  test('primary downloader input is available', async ({ page }) => {
+  test('public homepage directs visitors to registration instead of exposing the dashboard downloader', async ({ page }) => {
     await page.goto('/');
-    const candidates = page.locator('textarea, input[type="url"], input[placeholder*="link" i], textarea[placeholder*="link" i]');
-    await expect(candidates.first()).toBeVisible();
+    await expect(page.locator('a[href="/register"]').filter({ hasText: /get started free/i })).toBeVisible();
+    const downloader = page.locator('#profileUrl');
+    await expect(downloader).toBeAttached();
+    await expect(downloader).toBeHidden();
   });
 
   test('important public pages return successfully', async ({ request }) => {
