@@ -45,3 +45,10 @@ A new full D1 SQL export was successfully generated on 2026-11-15.
 - No production Worker code, bindings, secrets, routes, or custom domain were modified.
 - Cloudflare R2 is not enabled on this account, so it cannot currently be used as a private backup destination.
 - Do not delete either Worker until the SQL dump is safely retained privately and the deployment workflow is reconciled and validated.
+
+## Monetag integration verification (2026-11-15)
+- User confirmed Klypza uses Monetag to show ads to free-plan users.
+- The production Worker contains the Monetag verification meta tag, a free-plan-only ad loader for zone `12250392` via `https://nap5k.com/tag.min.js`, and a root `/sw.js` response configured for zone `12250376` via `https://3nbf4.com/act/files/service-worker.min.js?r=sw`.
+- These are retained as Monetag-related integration points; do not remove or rewrite them as unrelated advertising code without checking the publisher dashboard and exact zone formats.
+- The Monetag Help Center confirms that Push Notifications and MultiTag formats require the provider's `sw.js` file at the site root, and that ad tags should be copied exactly from the publisher dashboard. References: https://help.monetag.com/en/articles/6726318-how-do-i-get-started-as-a-publisher-paste-the-ad-tag-into-your-website and https://help.monetag.com/en/articles/6745314-i-don-t-see-any-ads-on-my-site-what-should-i-do.
+- The GitHub `main` Worker currently does not include the production Monetag controller or `/sw.js` handler; preserve the production version during reconciliation.
