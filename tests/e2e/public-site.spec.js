@@ -44,3 +44,33 @@ test.describe('Klypza public website', () => {
     }
   });
 });
+
+test.describe('Klypza API smoke and access-control checks', () => {
+  test('health endpoint responds without exposing secrets', async ({ request }) => {
+    const response = await request.get('/api/health');
+    expect(response.status()).toBe(200);
+    const data = await response.json();
+    expect(data.ok).toBe(true);
+    expect(data.provider).toBe('saveapi');
+    expect(typeof data.configured).toBe('boolean');
+    expect(JSON.stringify(data)).not.toMatch(/api[_-]?key|token|secret/i);
+  });
+
+  test('account and batch endpoints reject unauthenticated visitors', async ({ request }) => {
+    const account = await request.get('/api/account');
+    expect(account.status()).toBe(401);
+    const batch = await request.post('/api/batch/start', {
+      data: { batchSize: 5 },
+    });
+    expect(batch.status()).toBe(401);
+  });
+
+  test('download endpoint requires an authenticated account before processing URLs', async ({ request }) => {
+    const response = await request.get('/api/download', {
+      params: { url: 'https://www.youtube.com/shorts/abcdefghijk' },
+    });
+    expect(response.status()).toBe(401);
+    const data = await response.json();
+    expect(data.error).toBe('login_required');
+  });
+});
