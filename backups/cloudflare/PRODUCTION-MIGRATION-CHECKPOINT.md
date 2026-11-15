@@ -17,8 +17,8 @@
 
 ## Latest D1 backup export
 A new full D1 SQL export was successfully generated on 2026-11-15.
-- Export filename: `72c5379f-cd8d-41c0-b997-8bebdb0a3876-00000140-00000000-00005124-502dca84d90f34de23f735f60acb31ab.sql`
-- Bookmark: `00000140-00000000-00005124-502dca84d90f34de23f735f60acb31ab`
+- Export filename: `72c5379f-cd8d-41c0-b997-8bebdb0a3876-00000142-00000000-00005124-3403302d445840c8f36279edcef17334.sql`
+- Bookmark: `00000142-00000000-00005124-3403302d445840c8f36279edcef17334`
 - Export status: complete
 - The signed download URL is temporary and must not be treated as a permanent backup.
 - **The SQL dump has not yet been retained in permanent private storage.** This manifest is not the SQL dump.
@@ -69,3 +69,11 @@ A new full D1 SQL export was successfully generated on 2026-11-15.
 - Reconciliation branch: https://github.com/Uzumasama/Klypza/tree/integration/production-worker-reconciliation
 - Remaining blockers before safe production deployment: permanently retain the private D1 SQL dump; review Wrangler static-assets binding against current production; validate all required secrets and Paddle sandbox/live configuration; complete authenticated end-to-end download and billing tests. Do not merge or deploy until these pass.
 - Validation completed successfully on commit `2b196eba6bbf374d5fc484c1cea48e0586ef65c9`: GitHub Actions run `43680736449` passed both JavaScript syntax validation and Wrangler v4.162.0 dry-run build using Node 22.12.0. This validates parsing/build configuration only; it does not prove authenticated download, billing, or production D1 compatibility.
+
+
+## Follow-up reconciliation verification (2026-11-15)
+- Re-read live `klypza-app` Worker settings. The only configured bindings are D1 `KLYPZA_DB` and secrets `PADDLE_API_KEY`, `PADDLE_CLIENT_TOKEN`, `PADDLE_WEBHOOK_SECRET`, `RESEND_API_KEY`, and `SAVEAPI_KEY`. No `ASSETS` binding is configured in production.
+- Updated only the integration branch `wrangler.toml` to remove the unverified `[assets]` binding and align the declared bindings with live production. New integration commit: `7e01dde0002eee768aea450f59094d4a950f2f46`.
+- This is a configuration alignment based on live settings; it does not deploy or alter the live Worker.
+- Latest D1 export attempt `...00000142...sql` completed, but downloading its temporary signed URL returned HTTP 403. The SQL data is still not retained in permanent private storage. Earlier complete exports are also not a substitute for a retained dump.
+- The integration branch still requires a fresh successful validation run after this Wrangler config change, plus the private D1 backup and authenticated end-to-end tests. No merge or production deployment has occurred.
