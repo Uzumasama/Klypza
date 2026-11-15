@@ -666,7 +666,7 @@ export default {
     }
     if (url.pathname === '/api/health') return health(env);
     if (url.pathname === '/api/download') return await handleDownload(url, env, request);
-    if (url.pathname === '/api/file') return await handleFile(url, env);
+    if (url.pathname === '/api/file') return await handleFile(url, env, request);
     if (env.ASSETS) return env.ASSETS.fetch(request);
   } catch (err) {
     console.error('KLYPZA_WORKER_ERROR', err && err.stack ? err.stack : String(err));
@@ -830,7 +830,7 @@ async function handleDownload(url, env, request) {
     n += 1;
     const ext = guessExt(it);
     const name = `${platform}_${slug(result.title) || 'media'}_${n}.${ext}`;
-    const sig = await hmac(secret, `${it.url}\n${name}\n${expires}\n`);
+    const sig = await hmac(secret, `${it.url}\n${name}\n${expires}\n${user.id}\n`);
     const file = `/api/file?u=${encodeURIComponent(it.url)}&n=${encodeURIComponent(name)}&e=${expires}&s=${sig}`;
     items.push({
       type: it.type,
@@ -893,7 +893,7 @@ async function handleYouTubeInfo(parsed, env, user, batchId) {
     if (!/^(144|240|360|480|720|1080)p$/i.test(quality) || seen.has(quality)) continue;
     seen.add(quality);
     const name = `YouTube_${slug(title) || 'video'}_${quality}.mp4`;
-    const sig = await hmac(secret, `${parsed.href}\n${name}\n${expires}\n${quality}`);
+    const sig = await hmac(secret, `${parsed.href}\n${name}\n${expires}\n${user.id}\n${quality}`);
     const file = `/api/file?u=${encodeURIComponent(parsed.href)}&q=${encodeURIComponent(quality)}&n=${encodeURIComponent(name)}&e=${expires}&s=${sig}`;
     items.push({
       type: 'video',
@@ -956,7 +956,7 @@ async function handleFile(url, env) {
   const sig = url.searchParams.get('s') || '';
   const quality = (url.searchParams.get('q') || '').trim();
 
-  const expected = await hmac(env.SAVEAPI_KEY, `${target}\n${url.searchParams.get('n')}\n${expires}\n${quality}`);
+  const expected = await hmac(env.SAVEAPI_KEY, `${target}\n${url.searchParams.get('n')}\n${expires}\n${user.id}\n${quality}`);
   if (!safeEqual(sig, expected)) return json({ error: 'forbidden', message: 'The download link is invalid.' }, 403);
   if (!expires || Date.now() > expires) return json({ error: 'expired', message: 'The download link expired. Process the link again.' }, 410);
 
