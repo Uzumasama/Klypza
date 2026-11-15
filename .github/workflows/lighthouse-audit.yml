@@ -1,0 +1,29 @@
+name: Klypza Lighthouse audit
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 5 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: klypza-lighthouse-audit
+  cancel-in-progress: true
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Audit production pages
+        uses: treosh/lighthouse-ci-action@v12
+        with:
+          urls: |
+            https://klypza.cokso344.workers.dev/
+            https://klypza.cokso344.workers.dev/about
+            https://klypza.cokso344.workers.dev/privacy-policy
+            https://klypza.cokso344.workers.dev/terms
+          runs: 1
+          uploadArtifacts: true
