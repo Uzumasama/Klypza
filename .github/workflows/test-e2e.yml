@@ -30,7 +30,7 @@ jobs:
       - name: Run browser tests
         run: npm run test:e2e
         env:
-          BASE_URL: https://klypza.web.id
+          BASE_URL: https://klypza.cokso344.workers.dev
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
