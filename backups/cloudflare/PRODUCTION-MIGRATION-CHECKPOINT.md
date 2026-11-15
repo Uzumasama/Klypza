@@ -52,3 +52,10 @@ A new full D1 SQL export was successfully generated on 2026-11-15.
 - These are retained as Monetag-related integration points; do not remove or rewrite them as unrelated advertising code without checking the publisher dashboard and exact zone formats.
 - The Monetag Help Center confirms that Push Notifications and MultiTag formats require the provider's `sw.js` file at the site root, and that ad tags should be copied exactly from the publisher dashboard. References: https://help.monetag.com/en/articles/6726318-how-do-i-get-started-as-a-publisher-paste-the-ad-tag-into-your-website and https://help.monetag.com/en/articles/6745314-i-don-t-see-any-ads-on-my-site-what-should-i-do.
 - The GitHub `main` Worker currently does not include the production Monetag controller or `/sw.js` handler; preserve the production version during reconciliation.
+
+## Reconciliation audit findings (2026-11-15)
+- Confirmed the Monetag integration is intentional per the user. The production-only `/sw.js` handler and free-plan ad loader must be preserved; no ad code was removed.
+- The current GitHub `main` deployment config still sets Wrangler Worker name to `klypza`, while the custom-domain production Worker is `klypza-app`. Do not merge or deploy production code until this target mismatch is deliberately resolved.
+- Production Paddle checkout and subscription portal currently call `sandbox-api.paddle.com`, use sandbox price IDs, and return `environment: 'sandbox'`. Paid checkout is therefore in sandbox mode; do not present it as live billing or switch to live API until live Paddle products/price IDs and webhook configuration are verified.
+- GitHub `main` is missing production Paddle handlers, production Monetag controllers, and secure pending-download consumption logic. A full replacement in either direction is unsafe without a selective code reconciliation and schema review.
+- No production code, Worker routing, secrets, or database rows were changed during this audit.
