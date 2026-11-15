@@ -12,7 +12,7 @@ permissions:
 
 concurrency:
   group: klypza-lighthouse-audit
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   lighthouse:
