@@ -948,7 +948,9 @@ function saveApiError(data, upstreamStatus, retryAfter = null) {
   );
 }
 
-async function handleFile(url, env) {
+async function handleFile(url, env, request) {
+  const user = await getSessionUser(request, env);
+  if (!user) return json({ error: 'login_required', message: 'Log in to download this file.' }, 401);
   if (!env.SAVEAPI_KEY) return json({ error: 'not_configured' }, 503);
   const target = url.searchParams.get('u') || '';
   const name = (url.searchParams.get('n') || 'media').replace(/[^\w.\-]+/g, '_').slice(0, 120);
