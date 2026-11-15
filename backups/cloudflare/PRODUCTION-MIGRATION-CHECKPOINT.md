@@ -59,3 +59,12 @@ A new full D1 SQL export was successfully generated on 2026-11-15.
 - Production Paddle checkout and subscription portal currently call `sandbox-api.paddle.com`, use sandbox price IDs, and return `environment: 'sandbox'`. Paid checkout is therefore in sandbox mode; do not present it as live billing or switch to live API until live Paddle products/price IDs and webhook configuration are verified.
 - GitHub `main` is missing production Paddle handlers, production Monetag controllers, and secure pending-download consumption logic. A full replacement in either direction is unsafe without a selective code reconciliation and schema review.
 - No production code, Worker routing, secrets, or database rows were changed during this audit.
+
+## Reconciliation work branch (2026-11-15)
+- Created branch `integration/production-worker-reconciliation` from the current main branch.
+- Restored the exact archived production Worker module into `cloudflare/worker.mjs` on this branch (302,242 characters; same Git blob SHA as the verified archive).
+- Updated the branch-only Wrangler target to `klypza-app` and compatibility date `2026-11-12`, matching the observed production script settings. D1 binding remains the existing `klypza_accounts`; the existing static asset directory/binding remains configured for review.
+- Added a validation workflow that runs `node --check` and Wrangler v4.162.0 dry-run. The first attempt identified that Wrangler v4.162.0 requires Node >=22.12; the validation workflow was corrected to Node 22.12.0. The subsequent run is in progress at the time of this checkpoint update.
+- Added a branch-only guard to the deployment workflow so manual dispatch from this reconciliation branch cannot deploy production accidentally. The branch is not merged into main and no production deployment has been triggered.
+- Reconciliation branch: https://github.com/Uzumasama/Klypza/tree/integration/production-worker-reconciliation
+- Remaining blockers before safe production deployment: permanently retain the private D1 SQL dump; review Wrangler static-assets binding against current production; validate all required secrets and Paddle sandbox/live configuration; complete authenticated end-to-end download and billing tests. Do not merge or deploy until these pass.
