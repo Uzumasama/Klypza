@@ -1,0 +1,26 @@
+name: Validate production reconciliation branch
+
+on:
+  push:
+    branches:
+      - integration/production-worker-reconciliation
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Check Worker JavaScript syntax
+        run: node --check cloudflare/worker.mjs
+      - name: Validate Wrangler configuration and build
+        run: npx --yes wrangler@4.162.0 deploy --dry-run --outdir /tmp/klypza-dry-run
