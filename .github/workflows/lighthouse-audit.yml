@@ -1,8 +1,9 @@
 name: Klypza Lighthouse audit
 
 on:
-  push:
-    branches: [main]
+  workflow_run:
+    workflows: ["Deploy Klypza to Cloudflare Workers"]
+    types: [completed]
   workflow_dispatch:
   schedule:
     - cron: '0 5 * * 1'
@@ -16,6 +17,7 @@ concurrency:
 
 jobs:
   lighthouse:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
