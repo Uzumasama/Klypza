@@ -14,8 +14,7 @@ CREATE TABLE IF NOT EXISTS download_reservations (
   token_hash TEXT NOT NULL,
   expires_at TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  confirmed_at TEXT,
-  UNIQUE(user_id, batch_id, source_identity)
+  confirmed_at TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_download_reservations_user_day_status
   ON download_reservations(user_id, usage_date, status);
