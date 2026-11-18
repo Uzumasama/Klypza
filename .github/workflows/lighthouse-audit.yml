@@ -1,6 +1,9 @@
 name: Klypza Lighthouse audit
 
 on:
+  push:
+    branches:
+      - integration/production-worker-reconciliation
   workflow_run:
     workflows: ["Deploy Klypza to Cloudflare Workers"]
     types: [completed]
