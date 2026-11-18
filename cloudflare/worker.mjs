@@ -956,7 +956,7 @@ async function handleYouTubeInfo(parsed, env, user, batchId) {
   if (!items.length) return json({ error: 'no_video', message: 'No supported YouTube video qualities were found.' }, 422);
   items.sort((a, b) => parseInt(b.quality, 10) - parseInt(a.quality, 10));
   // YouTube quality/info listing is free; confirmation occurs after transfer receipt.
-  return json({ platform: 'YouTube', title, author, items, credits_remaining: Math.max(0,Number(user.credits)-1) });
+  return json({ platform: 'YouTube', title, author, items, credits_remaining: Math.max(0,Number(user.credits)) });
 }
 
 function saveApiError(data, upstreamStatus, retryAfter = null) {
