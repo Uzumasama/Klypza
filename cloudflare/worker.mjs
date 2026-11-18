@@ -983,6 +983,9 @@ async function handleFile(url, env, request) {
   }
   if (isPrivateHost(src.hostname)) return json({ error: 'forbidden' }, 403);
 
+  const reservationToken=randomToken();
+  const reserved=await reserveDownload({db:env.KLYPZA_DB,user,batchId,platform,sourceUrl:src.href,title,dailyLimit:planLimits(user.plan).daily,token:reservationToken});
+  if(!reserved.ok)return json({error:'reservation_failed',message:'Quota is reserved or unavailable. Start a new batch or retry.'},429);
   let up;
   let fallbackUrl = src.href;
   try {
