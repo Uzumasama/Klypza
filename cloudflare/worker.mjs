@@ -851,8 +851,7 @@ async function handleDownload(url, env, request) {
       file,
     });
   }
-  const charged=await chargeDownloadUsage(user,env,platform,parsed.href,result.title,batchId);
-  if(!charged)return json({error:'insufficient_credits',message:'You have no credits left. Please view plans.'},402);
+  // Credit is charged only after client confirms received file bytes.
   return json({ platform, title: result.title, author: result.author, items, credits_remaining: Math.max(0,planLimits(user.plan).daily-Number((await env.KLYPZA_DB.prepare('SELECT COUNT(*) AS used FROM usage_events WHERE user_id=? AND usage_date=?').bind(user.id,utcDate()).first())?.used||0)) });
 }
 
@@ -917,8 +916,7 @@ async function handleYouTubeInfo(parsed, env, user, batchId) {
   }
   if (!items.length) return json({ error: 'no_video', message: 'No supported YouTube video qualities were found.' }, 422);
   items.sort((a, b) => parseInt(b.quality, 10) - parseInt(a.quality, 10));
-  const charged=await chargeDownloadUsage(user,env,'YouTube',parsed.href,title,batchId);
-  if(!charged)return json({error:'insufficient_credits',message:'You have no credits left. Please view plans.'},402);
+  // YouTube quality/info listing is free; confirmation occurs after transfer receipt.
   return json({ platform: 'YouTube', title, author, items, credits_remaining: Math.max(0,Number(user.credits)-1) });
 }
 
