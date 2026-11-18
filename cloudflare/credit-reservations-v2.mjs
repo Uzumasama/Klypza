@@ -14,6 +14,8 @@ async function sha256Hex(value) {
  */
 export async function reserveDownload({ db, user, batchId, platform, sourceUrl, title, dailyLimit, token }) {
   if (!db || !user?.id || !batchId || !token) throw new TypeError('Missing reservation input');
+  if (!Number.isInteger(Number(dailyLimit)) || Number(dailyLimit) < 1) throw new TypeError('dailyLimit must be a positive integer');
+  if (typeof sourceUrl !== 'string' || !sourceUrl.trim() || typeof platform !== 'string' || !platform.trim()) throw new TypeError('sourceUrl and platform are required');
   const identity = canonicalSourceIdentity(sourceUrl);
   const id = crypto.randomUUID();
   const day = new Date().toISOString().slice(0, 10);
