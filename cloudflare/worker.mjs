@@ -7,6 +7,7 @@
 //   MAX_PROXY_BYTES   optional, defaults to 19,500,000 bytes
 
 import { handleCreditConfirmation } from './credit-confirmation-route-v2.mjs';
+import { reserveDownload, releaseReservation } from './credit-reservations-v2.mjs';
 
 const PLATFORM_HOSTS = {
   TikTok: ['tiktok.com'],
@@ -838,8 +839,8 @@ async function handleDownload(url, env, request) {
     n += 1;
     const ext = guessExt(it);
     const name = `${platform}_${slug(result.title) || 'media'}_${n}.${ext}`;
-    const sig = await hmac(secret, `${it.url}\n${name}\n${expires}\n${user.id}\n`);
-    const file = `/api/file?u=${encodeURIComponent(it.url)}&n=${encodeURIComponent(name)}&e=${expires}&s=${sig}`;
+    const sig = await hmac(secret, `${it.url}\n${name}\n${expires}\n${user.id}\n\n${batchId}\n${result.title}\n${platform}`);
+    const file = `/api/file?u=${encodeURIComponent(it.url)}&n=${encodeURIComponent(name)}&e=${expires}&s=${sig}&b=${encodeURIComponent(batchId)}&t=${encodeURIComponent(result.title)}&p=${encodeURIComponent(platform)}`;
     items.push({
       type: it.type,
       quality: it.quality,
