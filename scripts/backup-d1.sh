@@ -6,15 +6,19 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 STAMP="$(date -u +%Y%m%d-%H%M%S-UTC)"
 DEST="${ROOT}/backups/private/${STAMP}"
 DB_NAME="${1:-klypza_accounts}"
+WRANGLER_VERSION="4.162.0"
+
+# Run Wrangler from repository root so it consistently finds wrangler.toml.
+cd "$ROOT"
 
 mkdir -p "$DEST"
 command -v npx >/dev/null 2>&1 || { echo "ERROR: Node.js/npm (npx) is required." >&2; exit 1; }
 
 echo "Checking Wrangler authentication..."
-npx wrangler whoami
+npx --yes wrangler@"$WRANGLER_VERSION" whoami
 
 echo "Exporting remote D1 database: $DB_NAME"
-npx wrangler d1 export "$DB_NAME" --remote --output="$DEST/database.sql"
+npx --yes wrangler@"$WRANGLER_VERSION" d1 export "$DB_NAME" --remote --output="$DEST/database.sql"
 
 test -s "$DEST/database.sql" || { echo "ERROR: export is missing or empty." >&2; exit 1; }
 
