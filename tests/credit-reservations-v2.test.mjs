@@ -104,3 +104,19 @@ test('expired reservation can be safely revived with a fresh token', async () =>
   assert.equal(result.revived, true);
   assert.equal(result.token, token);
 });
+
+test('reservation rejects invalid daily quota before database access', async () => {
+  let accessed=false;
+  const db={prepare(){accessed=true;throw new Error('unexpected DB access');}};
+  await assert.rejects(reserveDownload({db,user:{id:'u'},batchId:'b',platform:'TikTok',sourceUrl:'https://example.test/video',title:'t',dailyLimit:0,token:'test-token'}),/dailyLimit/);
+  assert.equal(accessed,false);
+  await assert.rejects(reserveDownload({db,user:{id:'u'},batchId:'b',platform:'TikTok',sourceUrl:'https://example.test/video',title:'t',dailyLimit:2.5,token:'test-token'}),/dailyLimit/);
+  assert.equal(accessed,false);
+});
+
+test('reservation rejects missing source URL or platform before database access', async () => {
+  let accessed=false;
+  const db={prepare(){accessed=true;throw new Error('unexpected DB access');}};
+  await assert.rejects(reserveDownload({db,user:{id:'u'},batchId:'b',platform:'',sourceUrl:'https://example.test/video',title:'t',dailyLimit:2,token:'test-token'}),/sourceUrl and platform/);
+  assert.equal(accessed,false);
+});
