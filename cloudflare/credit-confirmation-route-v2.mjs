@@ -6,7 +6,7 @@ import { confirmDownload } from './credit-confirmation-ledger-v2.mjs';
  * POST-only authenticated confirmation handler.
  * Caller must resolve the session user and plan limit before invoking this module.
  */
-export async function handleCreditConfirmation(request, { db, user, dailyLimit }) {
+export async function handleCreditConfirmation(request, { db, user, dailyLimit, confirmFn = confirmDownload }) {
   if (request.method !== 'POST') {
     return jsonResponse({ error: 'method_not_allowed' }, 405, { allow: 'POST' });
   }
@@ -40,7 +40,7 @@ export async function handleCreditConfirmation(request, { db, user, dailyLimit }
   }
   let result;
   try {
-    result = await confirmDownload({
+    result = await confirmFn({
       db,
       userId: user.id,
       reservationId: body.reservationId,
