@@ -1178,3 +1178,23 @@ function isPrivateHost(h) {
   if (h.includes(':')) return true;
   return false;
 }
+
+/* Dashboard tablet/mobile layout correction: avoid reserving a desktop sidebar column on narrow screens. */
+@media(max-width:1100px){
+  #dashboardCard{grid-template-columns:minmax(0,1fr)!important;grid-template-rows:auto auto auto!important;gap:0!important;width:min(100%,980px)!important}
+  #dashboardCard>.dashboard-welcome{grid-column:1!important;grid-row:1!important;margin:0 0 18px!important}
+  #dashboardCard #emailVerifyNotice{grid-column:1!important;grid-row:2!important}
+  #dashboardCard .dashboard-side-menu,#dashboardCard .profile-tabs{grid-column:1!important;grid-row:3!important;position:static!important;align-self:stretch!important;width:100%!important;margin:0 0 16px!important}
+  #dashboardCard .dashboard-side-menu{padding:8px!important}
+  #dashboardCard .dashboard-side-menu .account-menu-content{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(145px,1fr))!important}
+  #dashboardCard .dashboard-side-menu .account-menu-content[hidden]{display:none!important}
+  #dashboardCard .profile-tabs{flex-direction:row!important;flex-wrap:wrap!important}
+  #dashboardCard .profile-panel,#dashboardCard #overviewPanel{grid-column:1!important;grid-row:4!important;width:100%!important;min-width:0!important}
+  #dashboardCard .profile-panel{margin-top:0!important}
+}
+@media(max-width:700px){
+  #dashboardCard{width:calc(100% - 22px)!important;padding:15px!important;margin:18px auto 40px!important;border-radius:20px!important}
+  #dashboardCard>.dashboard-welcome{flex-direction:column!important;align-items:flex-start!important;padding:22px!important;border-radius:17px!important}
+  #dashboardCard .dashboard-welcome-actions{align-self:flex-start}
+  #dashboardCard .dashboard-live-pill{white-space:normal}
+}
