@@ -1025,14 +1025,16 @@ async function handleFile(url, env, request) {
       up = await fetchSafeMedia(src.href);
     }
   } catch {
+    await releaseReservation({db:env.KLYPZA_DB,id:reserved.id,userId:user.id,token:reservationToken}).catch(()=>{});
     return json({ error: 'upstream_error', message: 'Could not retrieve the file.' }, 502);
   }
-  if (!up.ok || !up.body) return json({ error: 'upstream_error', message: `Could not retrieve the file (kode ${up.status}).` }, 502);
+  if (!up.ok || !up.body) { await releaseReservation({db:env.KLYPZA_DB,id:reserved.id,userId:user.id,token:reservationToken}).catch(()=>{}); return json({ error: 'upstream_error', message: `Could not retrieve the file (kode ${up.status}).` }, 502); }
 
   const size = Number(up.headers.get('content-length') || 0);
   if (size > Number(env.MAX_PROXY_BYTES || 19500000)) {
     // Terlalu besar untuk diteruskan lewat Cloudflare (batas proxy yang dikonfigurasi): buka langsung dari sumbernya.
     try { await up.body.cancel(); } catch { /* abaikan */ }
+    await releaseReservation({db:env.KLYPZA_DB,id:reserved.id,userId:user.id,token:reservationToken}).catch(()=>{});
     return new Response(null, { status: 302, headers: { location: fallbackUrl, 'cache-control': 'no-store' } });
   }
 
@@ -1043,6 +1045,9 @@ async function handleFile(url, env, request) {
   headers.set('content-disposition', `attachment; filename="${name}"`);
   headers.set('cache-control', 'no-store');
   headers.set('x-content-type-options', 'nosniff');
+  headers.set('x-klypza-reservation-id', reserved.id);
+  headers.set('x-klypza-reservation-token', reserved.token);
+  headers.set('access-control-expose-headers', 'x-klypza-reservation-id,x-klypza-reservation-token,content-type');
   return new Response(up.body, { status: 200, headers });
 }
 
