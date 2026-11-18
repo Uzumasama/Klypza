@@ -25,9 +25,9 @@ jobs:
         uses: treosh/lighthouse-ci-action@v12
         with:
           urls: |
-            https://klypza.cokso344.workers.dev/
-            https://klypza.cokso344.workers.dev/about
-            https://klypza.cokso344.workers.dev/privacy-policy
-            https://klypza.cokso344.workers.dev/terms
+            https://klypza.web.id/
+            https://klypza.web.id/about
+            https://klypza.web.id/privacy-policy
+            https://klypza.web.id/terms
           runs: 1
           uploadArtifacts: true
