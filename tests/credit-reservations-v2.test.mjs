@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { reserveDownload, releaseReservation, expireReservations } from '../cloudflare/credit-reservations-v2.mjs';
+import { reserveDownload, releaseReservation, expireReservations, hashReservationToken } from '../cloudflare/credit-reservations-v2.mjs';
 
 test('reservation helper exports and accepts D1-shaped inputs', async () => {
   const fakeDb = {
@@ -119,4 +119,17 @@ test('reservation rejects missing source URL or platform before database access'
   const db={prepare(){accessed=true;throw new Error('unexpected DB access');}};
   await assert.rejects(reserveDownload({db,user:{id:'u'},batchId:'b',platform:'',sourceUrl:'https://example.test/video',title:'t',dailyLimit:2,token:'test-token'}),/sourceUrl and platform/);
   assert.equal(accessed,false);
+});
+
+
+test('reservation token hashing is stable and returns a SHA-256 hex digest', async () => {
+  const a = await hashReservationToken('token-value-that-is-long-enough');
+  const b = await hashReservationToken('token-value-that-is-long-enough');
+  assert.equal(a, b);
+  assert.match(a, /^[a-f0-9]{64}$/);
+});
+
+test('reservation token hashing rejects short or non-string tokens', async () => {
+  await assert.rejects(hashReservationToken('short'), /20 characters/);
+  await assert.rejects(hashReservationToken(null), /20 characters/);
 });
