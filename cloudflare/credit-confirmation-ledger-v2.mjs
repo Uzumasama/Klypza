@@ -74,6 +74,14 @@ export async function confirmDownload({ db, userId, reservationId, tokenHash, re
   const charged = Number(results?.[0]?.meta?.changes || 0) === 1;
   const confirmed = Number(results?.[1]?.meta?.changes || 0) === 1;
   const ledger = await db.prepare('SELECT id FROM confirmed_download_charges WHERE user_id=? AND source_identity=?').bind(userId,reservation.source_identity).first();
-  if (ledger?.id !== ids.chargeId) return { ok: false, error: 'already_charged_for_source' };
+  if (ledger?.id !== ids.chargeId) {
+    // A different reservation already charged this canonical source. Release this
+    // reservation so it no longer occupies daily/batch quota until TTL expiry.
+    await db.prepare(`
+      UPDATE download_reservations SET status='released'
+      WHERE id=? AND user_id=? AND status='reserved' AND token_hash=?
+    `).bind(reservationId,userId,tokenHash).run();
+    return { ok: false, error: 'already_charged_for_source' };
+  }
   return { ok: true, idempotent: !charged || !confirmed, chargeId: ids.chargeId, usageEventId: ids.usageEventId };
 }
