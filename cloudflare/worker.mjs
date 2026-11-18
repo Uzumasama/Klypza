@@ -335,7 +335,7 @@ function infoPageResponse(slug){
   return new Response(body,{headers:securityHeaders({'content-type':'text/html; charset=utf-8','cache-control':'public,max-age=3600'})});
 }
 async function publicStats(env){if(!env.KLYPZA_DB)return json({users:0,downloads:0});const [u,d]=await Promise.all([env.KLYPZA_DB.prepare('SELECT COUNT(*) AS total FROM users').first(),env.KLYPZA_DB.prepare('SELECT COUNT(*) AS total FROM usage_events').first()]);return json({users:Number(u?.total||0),downloads:Number(d?.total||0)});}
-async async function accountRouter(request, env, url) {
+async function accountRouter(request, env, url) {
   const path = url.pathname;
   if (!env.KLYPZA_DB) return json({error:'database_unavailable',message:'Account storage is not configured.'},503);
   if (path === '/api/auth/register' && request.method === 'POST') return registerAccount(request,env);
