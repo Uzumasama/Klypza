@@ -1013,7 +1013,7 @@ async function handleFile(url, env, request) {
   try {
     if (detectPlatform(src.hostname) === 'YouTube') {
       if (!/^(144|240|360|480|720|1080)p$/i.test(quality)) {
-        return json({ error: 'invalid_quality', message: 'Invalid YouTube quality. Process the link again.' }, 400);
+        await releaseReservation({db:env.KLYPZA_DB,id:reserved.id,userId:user.id,token:reservationToken}).catch(()=>{}); return json({ error: 'invalid_quality', message: 'Invalid YouTube quality. Process the link again.' }, 400);
       }
       const createUrl = new URL('https://api.saveapi.org/v1/youtube/create');
       createUrl.searchParams.set('url', src.href);
@@ -1025,21 +1025,21 @@ async function handleFile(url, env, request) {
           signal: AbortSignal.timeout(60000),
         });
       } catch {
-        return json({ error: 'upstream_timeout', message: 'SaveAPI did not respond while preparing the YouTube file. Please try again.' }, 504);
+        await releaseReservation({db:env.KLYPZA_DB,id:reserved.id,userId:user.id,token:reservationToken}).catch(()=>{}); return json({ error: 'upstream_timeout', message: 'SaveAPI did not respond while preparing the YouTube file. Please try again.' }, 504);
       }
       let made;
       try { made = await createRes.json(); } catch {
-        return json({ error: 'bad_response', message: 'SaveAPI returned an unreadable YouTube download response.' }, 502);
+        await releaseReservation({db:env.KLYPZA_DB,id:reserved.id,userId:user.id,token:reservationToken}).catch(()=>{}); return json({ error: 'bad_response', message: 'SaveAPI returned an unreadable YouTube download response.' }, 502);
       }
-      if (!createRes.ok || !made || made.success === false) return saveApiError(made || {}, createRes.status, createRes.headers.get('Retry-After'));
+      if (!createRes.ok || !made || made.success === false) { await releaseReservation({db:env.KLYPZA_DB,id:reserved.id,userId:user.id,token:reservationToken}).catch(()=>{}); return saveApiError(made || {}, createRes.status, createRes.headers.get('Retry-After')); }
       const madeRoot = made.data && typeof made.data === 'object' ? made.data : made;
       const streamUrl = madeRoot.url || madeRoot.download_url || madeRoot.downloadUrl;
       if (typeof streamUrl !== 'string') {
-        return json({ error: 'bad_response', message: 'SaveAPI did not return a YouTube download stream.' }, 502);
+        await releaseReservation({db:env.KLYPZA_DB,id:reserved.id,userId:user.id,token:reservationToken}).catch(()=>{}); return json({ error: 'bad_response', message: 'SaveAPI did not return a YouTube download stream.' }, 502);
       }
       const mediaUrl = new URL(streamUrl);
       if (mediaUrl.protocol !== 'https:' || mediaUrl.username || mediaUrl.password || isPrivateHost(mediaUrl.hostname)) {
-        return json({ error: 'bad_response', message: 'SaveAPI returned an invalid YouTube stream URL.' }, 502);
+        await releaseReservation({db:env.KLYPZA_DB,id:reserved.id,userId:user.id,token:reservationToken}).catch(()=>{}); return json({ error: 'bad_response', message: 'SaveAPI returned an invalid YouTube stream URL.' }, 502);
       }
       fallbackUrl = mediaUrl.href;
       up = await fetchSafeMedia(mediaUrl.href);
