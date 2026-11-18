@@ -1,4 +1,4 @@
-name = "klypza"
+name = "klypza-app"
 main = "cloudflare/worker.mjs"
 compatibility_date = "2026-11-09"
 account_id = "e279642bc9b3b73795df3317c4179bcf"
