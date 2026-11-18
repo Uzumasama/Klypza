@@ -28,3 +28,20 @@ test('missing content type is rejected before database access', async () => {
   assert.deepEqual(result, { ok: false, error: 'missing_content_type' });
   assert.equal(accessed, false);
 });
+
+test('non-video content type is rejected before database access', async () => {
+  let accessed = false;
+  const db = { prepare() { accessed = true; throw new Error('should not query'); } };
+  const result = await confirmDownload({ db, userId: 'u1', reservationId: 'r1', tokenHash: 'h', receivedBytes: 20, contentType: 'text/html; charset=utf-8', dailyLimit: 10 });
+  assert.deepEqual(result, { ok: false, error: 'invalid_content_type' });
+  assert.equal(accessed, false);
+});
+
+test('video and generic binary MIME types pass content-type preflight', async () => {
+  for (const contentType of ['video/mp4', 'VIDEO/WEBM', 'application/octet-stream']) {
+    let accessed = false;
+    const db = { prepare() { accessed = true; throw new Error('stop after validation'); } };
+    await assert.rejects(confirmDownload({ db, userId: 'u1', reservationId: 'r1', tokenHash: 'h', receivedBytes: 20, contentType, dailyLimit: 10 }), /stop after validation/);
+    assert.equal(accessed, true);
+  }
+});
