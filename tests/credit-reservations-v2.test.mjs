@@ -47,6 +47,21 @@ test('reservation creates a separate attempt and does not rotate an existing tok
   assert.equal(result.error,'quota_or_reservation_conflict');
 });
 
+test('successful reservation returns unique id and transfer token', async () => {
+  let insertCalled=false;
+  const fakeDb={
+    prepare(sql){return {bind(...args){return {async run(){if(sql.includes('INSERT INTO download_reservations')){insertCalled=true;return {meta:{changes:1}};}return {meta:{changes:0}};},async first(){return null;}};}};}
+  };
+  const token='successful-reservation-token-long-enough';
+  const result=await reserveDownload({db:fakeDb,user:{id:'user-ok'},batchId:'batch-ok',platform:'Instagram',sourceUrl:'https://www.instagram.com/reel/abc/',title:'Clip',dailyLimit:10,token});
+  assert.equal(insertCalled,true);
+  assert.equal(result.ok,true);
+  assert.equal(result.idempotent,false);
+  assert.equal(result.token,token);
+  assert.ok(result.id);
+  assert.match(result.identity,/^[a-f0-9]{64}$/);
+});
+
 test('reservation rejects invalid daily quota before database access', async () => {
   let accessed=false;
   const db={prepare(){accessed=true;throw new Error('unexpected DB access');}};
