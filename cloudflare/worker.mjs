@@ -33,6 +33,11 @@ const INDEX_HTML = "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\
     var token=response.headers.get('x-klypza-reservation-token');
     var contentType=response.headers.get('content-type')||blob.type||'application/octet-stream';
     if(!reservationId||!token)throw new Error('Transfer confirmation data is missing. Please retry.');
+    var expectedBytes=Number(response.headers.get('content-length')||0);
+    if(expectedBytes>0&&blob.size!==expectedBytes){
+      await releaseReceivedTransfer(response);
+      throw new Error('Transfer was incomplete. No credit was charged; please retry.');
+    }
     var confirmation=await fetch('/api/download/confirm',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({reservationId:reservationId,token:token,receivedBytes:blob.size,contentType:contentType})});
     if(!confirmation.ok)throw new Error('File received, but credit confirmation failed. Please contact support before retrying.');
     return await confirmation.json();
