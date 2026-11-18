@@ -7,6 +7,11 @@ async function sha256Hex(value) {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+export async function hashReservationToken(token) {
+  if (typeof token !== 'string' || token.length < 20) throw new TypeError('token must be at least 20 characters');
+  return sha256Hex(token);
+}
+
 /**
  * Creates a D1 reservation. This is intentionally isolated from the production Worker
  * until integration review. The conditional INSERT performs quota checks in the write
