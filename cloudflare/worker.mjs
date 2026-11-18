@@ -1198,3 +1198,10 @@ function isPrivateHost(h) {
   #dashboardCard .dashboard-welcome-actions{align-self:flex-start}
   #dashboardCard .dashboard-live-pill{white-space:normal}
 }
+
+/* Contrast safeguard for dashboard welcome banner */
+#dashboardCard>.dashboard-welcome{background:radial-gradient(circle at 85% 12%,rgba(177,143,255,.24),transparent 32%),linear-gradient(115deg,#09143d 0%,#172d70 55%,#5525d9 100%)!important;color:#fff!important}
+#dashboardCard .dashboard-welcome .section-kicker{color:#c7d4ff!important}
+#dashboardCard .dashboard-welcome h1{color:#fff!important;text-shadow:0 1px 1px rgba(0,0,0,.12)}
+#dashboardCard .dashboard-welcome p{color:#e2e9ff!important}
+#dashboardCard .dashboard-live-pill{color:#fff!important;background:rgba(255,255,255,.12)!important;border-color:rgba(255,255,255,.28)!important}
