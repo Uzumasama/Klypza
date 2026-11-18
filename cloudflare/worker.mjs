@@ -344,6 +344,15 @@ async async function accountRouter(request, env, url) {
   }
   if (path === '/api/account' && request.method === 'GET') return accountOverview(request,env);
   if (path === '/api/account/password' && request.method === 'POST') return changeAccountPassword(request,env);
+  if (path === '/api/download/release' && request.method === 'POST') {
+    const user=await getSessionUser(request,env);
+    if(!user)return json({error:'login_required'},401);
+    if(Number(user.email_verified)!==1)return json({error:'email_not_verified'},403);
+    let body;try{body=await request.json()}catch{return json({error:'invalid_json'},400)}
+    if(!body||typeof body!=='object'||Array.isArray(body)||typeof body.reservationId!=='string'||typeof body.token!=='string')return json({error:'invalid_body'},400);
+    const released=await releaseReservation({db:env.KLYPZA_DB,id:body.reservationId,userId:user.id,token:body.token});
+    return json({ok:true,released});
+  }
   if (path === '/api/download/confirm' && request.method === 'POST') {
     const user=await getSessionUser(request,env);
     if(!user)return json({error:'login_required'},401);
@@ -694,7 +703,7 @@ export default {
     if (['/about','/contact','/privacy-policy','/terms','/copyright'].includes(url.pathname)) return infoPageResponse(url.pathname.slice(1));
     if (url.pathname === '/api/public-stats' && request.method === 'GET') return await publicStats(env);
     if(url.pathname==='/api/auth/verify-email' && request.method==='GET') return await verifyEmailToken(url,env);
-    if (url.pathname.startsWith('/api/auth/') || url.pathname === '/api/account' || url.pathname === '/api/account/password' || url.pathname === '/api/download/confirm' || url.pathname === '/api/plans' || url.pathname === '/api/batch/start') {
+    if (url.pathname.startsWith('/api/auth/') || url.pathname === '/api/account' || url.pathname === '/api/account/password' || url.pathname === '/api/download/confirm' || url.pathname === '/api/download/release' || url.pathname === '/api/plans' || url.pathname === '/api/batch/start') {
       const response=await accountRouter(request,env,url); if(response)return response;
     }
     if (url.pathname === '/api/health') return health(env);
