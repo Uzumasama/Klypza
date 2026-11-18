@@ -1,0 +1,2 @@
+# Private backups may contain user data and must never be committed
+/backups/private/
