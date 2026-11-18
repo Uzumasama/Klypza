@@ -39,9 +39,19 @@ export async function reserveDownload({ db, user, batchId, platform, sourceUrl, 
   );
   const result = await statement.run();
   if (Number(result?.meta?.changes) === 1) return { ok: true, id, identity, token, expiresAt, idempotent: false };
+
+  // On an idempotent retry, rotate the secret on the existing active reservation.
+  // This ensures the retry receives a usable token instead of a token-less response.
+  const now = new Date().toISOString();
   const existing = await db.prepare('SELECT id,status,expires_at FROM download_reservations WHERE user_id=? AND batch_id=? AND source_identity=?').bind(user.id,batchId,identity).first();
-  if (existing && existing.status === 'reserved' && existing.expires_at > new Date().toISOString()) {
-    return { ok: true, id: existing.id, identity, token: null, expiresAt: existing.expires_at, idempotent: true };
+  if (existing && existing.status === 'reserved' && existing.expires_at > now) {
+    const refreshed = await db.prepare(`
+      UPDATE download_reservations SET token_hash=?,expires_at=?
+      WHERE id=? AND user_id=? AND status='reserved' AND expires_at>?
+    `).bind(tokenHash,expiresAt,existing.id,user.id,now).run();
+    if (Number(refreshed?.meta?.changes) === 1) {
+      return { ok: true, id: existing.id, identity, token, expiresAt, idempotent: true };
+    }
   }
   return { ok: false, error: 'quota_or_reservation_conflict' };
 }
