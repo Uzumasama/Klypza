@@ -15,8 +15,8 @@ export function confirmationIds(reservationId) {
   };
 }
 
-export async function confirmDownload({ db, userId, reservationId, tokenHash, receivedBytes, contentType }) {
-  if (!db || !userId || !reservationId || !tokenHash) throw new TypeError('Missing confirmation input');
+export async function confirmDownload({ db, userId, reservationId, tokenHash, receivedBytes, contentType, dailyLimit }) {
+  if (!db || !userId || !reservationId || !tokenHash || !Number.isFinite(Number(dailyLimit)) || Number(dailyLimit) < 1) throw new TypeError('Missing confirmation input');
   const bytes = Number(receivedBytes);
   if (!Number.isFinite(bytes) || bytes <= 0) return { ok: false, error: 'empty_transfer' };
   if (!String(contentType || '').trim()) return { ok: false, error: 'missing_content_type' };
@@ -58,10 +58,10 @@ export async function confirmDownload({ db, userId, reservationId, tokenHash, re
 
   const transaction = db.prepare(`
     INSERT INTO credit_transactions(id,user_id,amount,balance_after,reason,reference_id)
-    SELECT ?,?,?,?,'video_download',?
+    SELECT ?,?,?,(SELECT MAX(0,?-COUNT(*)) FROM usage_events WHERE user_id=? AND usage_date=?),'video_download',?
     WHERE EXISTS(SELECT 1 FROM confirmed_download_charges WHERE id=? AND reservation_id=? AND user_id=?)
       AND NOT EXISTS(SELECT 1 FROM credit_transactions WHERE id=?)
-  `).bind(ids.transactionId,userId,-1,0,ids.chargeId,ids.chargeId,reservationId,userId,ids.transactionId);
+  `).bind(ids.transactionId,userId,-1,Number(dailyLimit),userId,reservation.usage_date,ids.chargeId,ids.chargeId,reservationId,userId,ids.transactionId);
 
   const download = db.prepare(`
     INSERT INTO downloads(id,user_id,platform,source_url,title,credits_used,status)
