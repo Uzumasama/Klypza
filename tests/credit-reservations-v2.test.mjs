@@ -68,3 +68,39 @@ test('idempotent retry refreshes the reservation token and returns a usable toke
   assert.equal(result.idempotent, true);
   assert.equal(result.token, token);
 });
+
+test('expired reservation can be safely revived with a fresh token', async () => {
+  let revived = false;
+  const fakeDb = {
+    prepare(sql) {
+      return {
+        bind(...args) {
+          return {
+            async run() {
+              if (sql.includes('INSERT INTO download_reservations')) return { meta: { changes: 0 } };
+              if (sql.includes('SET status=\'reserved\',token_hash=?')) { revived = true; return { meta: { changes: 1 } }; }
+              return { meta: { changes: 0 } };
+            },
+            async first() {
+              if (sql.includes('SELECT id,status,expires_at')) return {
+                id: 'expired-reservation', status: 'reserved',
+                expires_at: new Date(Date.now() - 1000).toISOString(),
+              };
+              return null;
+            },
+          };
+        },
+      };
+    },
+  };
+  const token = 'fresh-revival-token-long-enough';
+  const result = await reserveDownload({
+    db: fakeDb, user: { id: 'user-3' }, batchId: 'batch-3',
+    platform: 'YouTube', sourceUrl: 'https://youtu.be/xyz789',
+    title: 'Expired retry', dailyLimit: 5, token,
+  });
+  assert.equal(revived, true);
+  assert.equal(result.ok, true);
+  assert.equal(result.revived, true);
+  assert.equal(result.token, token);
+});
