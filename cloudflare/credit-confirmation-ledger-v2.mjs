@@ -3,8 +3,6 @@
  * Isolated from Worker routes until integration review.
  * Uses deterministic charge IDs and SQL guards so retries cannot double-charge.
  */
-import { canonicalSourceIdentity } from './credit-confirmation-v2.mjs';
-
 export function confirmationIds(reservationId) {
   if (!reservationId || typeof reservationId !== 'string') throw new TypeError('reservationId required');
   return {
@@ -19,7 +17,9 @@ export async function confirmDownload({ db, userId, reservationId, tokenHash, re
   if (!db || !userId || !reservationId || !tokenHash || !Number.isFinite(Number(dailyLimit)) || Number(dailyLimit) < 1) throw new TypeError('Missing confirmation input');
   const bytes = Number(receivedBytes);
   if (!Number.isFinite(bytes) || bytes <= 0) return { ok: false, error: 'empty_transfer' };
-  if (!String(contentType || '').trim()) return { ok: false, error: 'missing_content_type' };
+  const mime = String(contentType || '').trim().toLowerCase().split(';', 1)[0];
+  if (!mime) return { ok: false, error: 'missing_content_type' };
+  if (!(mime.startsWith('video/') || mime === 'application/octet-stream')) return { ok: false, error: 'invalid_content_type' };
 
   const reservation = await db.prepare(`
     SELECT id,user_id,batch_id,usage_date,platform,source_identity,source_url,title,status,token_hash,expires_at
