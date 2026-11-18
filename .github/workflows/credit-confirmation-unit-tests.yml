@@ -1,0 +1,31 @@
+name: Credit Confirmation V2 unit tests
+
+on:
+  push:
+    branches:
+      - feature/credit-confirmation-v2
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Syntax checks
+        run: |
+          node --check cloudflare/credit-confirmation-v2.mjs
+          node --check cloudflare/credit-reservations-v2.mjs
+      - name: Run unit tests
+        run: node --test tests/credit-confirmation-v2.test.mjs tests/credit-reservations-v2.test.mjs
