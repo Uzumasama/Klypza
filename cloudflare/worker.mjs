@@ -6,6 +6,8 @@
 //   SAVEAPI_KEY       required secret from SaveAPI
 //   MAX_PROXY_BYTES   optional, defaults to 19,500,000 bytes
 
+import { handleCreditConfirmation } from './credit-confirmation-route-v2.mjs';
+
 const PLATFORM_HOSTS = {
   TikTok: ['tiktok.com'],
   Instagram: ['instagram.com', 'instagr.am'],
@@ -302,7 +304,7 @@ function infoPageResponse(slug){
   return new Response(body,{headers:securityHeaders({'content-type':'text/html; charset=utf-8','cache-control':'public,max-age=3600'})});
 }
 async function publicStats(env){if(!env.KLYPZA_DB)return json({users:0,downloads:0});const [u,d]=await Promise.all([env.KLYPZA_DB.prepare('SELECT COUNT(*) AS total FROM users').first(),env.KLYPZA_DB.prepare('SELECT COUNT(*) AS total FROM usage_events').first()]);return json({users:Number(u?.total||0),downloads:Number(d?.total||0)});}
-async function accountRouter(request, env, url) {
+async async function accountRouter(request, env, url) {
   const path = url.pathname;
   if (!env.KLYPZA_DB) return json({error:'database_unavailable',message:'Account storage is not configured.'},503);
   if (path === '/api/auth/register' && request.method === 'POST') return registerAccount(request,env);
@@ -317,6 +319,12 @@ async function accountRouter(request, env, url) {
   }
   if (path === '/api/account' && request.method === 'GET') return accountOverview(request,env);
   if (path === '/api/account/password' && request.method === 'POST') return changeAccountPassword(request,env);
+  if (path === '/api/download/confirm' && request.method === 'POST') {
+    const user=await getSessionUser(request,env);
+    if(!user)return json({error:'login_required'},401);
+    if(Number(user.email_verified)!==1)return json({error:'email_not_verified'},403);
+    return handleCreditConfirmation(request,{db:env.KLYPZA_DB,user,dailyLimit:planLimits(user.plan).daily});
+  }
   if (path === '/api/batch/start' && request.method === 'POST') return startDownloadBatch(request,env);
   if (path === '/api/plans' && request.method === 'GET') return json({currency:'USD',billingPeriod:'month',testPricing:true,plans:[
     {id:'free',name:'Free',price:0,dailyLimit:10,batchLimit:5,zip:true,quality:'Basic',queue:'Standard',ads:true,available:true},
@@ -661,7 +669,7 @@ export default {
     if (['/about','/contact','/privacy-policy','/terms','/copyright'].includes(url.pathname)) return infoPageResponse(url.pathname.slice(1));
     if (url.pathname === '/api/public-stats' && request.method === 'GET') return await publicStats(env);
     if(url.pathname==='/api/auth/verify-email' && request.method==='GET') return await verifyEmailToken(url,env);
-    if (url.pathname.startsWith('/api/auth/') || url.pathname === '/api/account' || url.pathname === '/api/account/password' || url.pathname === '/api/plans' || url.pathname === '/api/batch/start') {
+    if (url.pathname.startsWith('/api/auth/') || url.pathname === '/api/account' || url.pathname === '/api/account/password' || url.pathname === '/api/download/confirm' || url.pathname === '/api/plans' || url.pathname === '/api/batch/start') {
       const response=await accountRouter(request,env,url); if(response)return response;
     }
     if (url.pathname === '/api/health') return health(env);
