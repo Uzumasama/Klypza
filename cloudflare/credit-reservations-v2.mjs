@@ -53,6 +53,18 @@ export async function reserveDownload({ db, user, batchId, platform, sourceUrl, 
       return { ok: true, id: existing.id, identity, token, expiresAt, idempotent: true };
     }
   }
+  // Expired reservation rows keep the UNIQUE key occupied; reactivate only expired
+  // rows, using a guarded UPDATE so concurrent retries cannot both revive it.
+  if (existing && (existing.status === 'expired' || existing.status === 'reserved' && existing.expires_at <= now)) {
+    const revived = await db.prepare(`
+      UPDATE download_reservations
+      SET status='reserved',token_hash=?,expires_at=?,usage_date=?,platform=?,source_url=?,title=?
+      WHERE id=? AND user_id=? AND (status='expired' OR (status='reserved' AND expires_at<=?))
+    `).bind(tokenHash,expiresAt,day,platform,sourceUrl,String(title||'').slice(0,200),existing.id,user.id,now).run();
+    if (Number(revived?.meta?.changes) === 1) {
+      return { ok: true, id: existing.id, identity, token, expiresAt, idempotent: true, revived: true };
+    }
+  }
   return { ok: false, error: 'quota_or_reservation_conflict' };
 }
 
