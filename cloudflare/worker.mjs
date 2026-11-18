@@ -967,7 +967,10 @@ async function handleFile(url, env, request) {
   const sig = url.searchParams.get('s') || '';
   const quality = (url.searchParams.get('q') || '').trim();
 
-  const expected = await hmac(env.SAVEAPI_KEY, `${target}\n${url.searchParams.get('n')}\n${expires}\n${user.id}\n${quality}`);
+  const batchId=url.searchParams.get('b')||'';
+  const title=String(url.searchParams.get('t')||'').slice(0,200);
+  const platform=String(url.searchParams.get('p')||detectPlatform((()=>{try{return new URL(target).hostname}catch{return ''}})())||'Unknown');
+  const expected = await hmac(env.SAVEAPI_KEY, `${target}\n${url.searchParams.get('n')}\n${expires}\n${user.id}\n${quality}\n${batchId}\n${title}\n${platform}`);
   if (!safeEqual(sig, expected)) return json({ error: 'forbidden', message: 'The download link is invalid.' }, 403);
   if (!expires || Date.now() > expires) return json({ error: 'expired', message: 'The download link expired. Process the link again.' }, 410);
 
