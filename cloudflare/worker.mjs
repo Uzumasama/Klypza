@@ -1054,10 +1054,10 @@ async function handleFile(url, env, request) {
 
   const size = Number(up.headers.get('content-length') || 0);
   if (size > Number(env.MAX_PROXY_BYTES || 19500000)) {
-    // Terlalu besar untuk diteruskan lewat Cloudflare (batas proxy yang dikonfigurasi): buka langsung dari sumbernya.
-    try { await up.body.cancel(); } catch { /* abaikan */ }
+    // Direct-source redirect would bypass the confirmation/credit ledger; fail closed instead.
+    try { await up.body.cancel(); } catch { /* ignore */ }
     await releaseReservation({db:env.KLYPZA_DB,id:reserved.id,userId:user.id,token:reservationToken}).catch(()=>{});
-    return new Response(null, { status: 302, headers: { location: fallbackUrl, 'cache-control': 'no-store' } });
+    return json({ error: 'file_too_large', message: 'This file exceeds Klypza’s current transfer limit. No credit was charged.' }, 413);
   }
 
   const headers = new Headers();
