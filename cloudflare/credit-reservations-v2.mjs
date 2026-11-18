@@ -38,7 +38,7 @@ export async function reserveDownload({ db, user, batchId, platform, sourceUrl, 
       (SELECT COUNT(*) FROM usage_events WHERE user_id=? AND batch_id=?) +
       (SELECT COUNT(*) FROM download_reservations WHERE user_id=? AND batch_id=? AND status='reserved' AND expires_at>?) <
       (SELECT max_videos FROM download_batches WHERE id=? AND user_id=?)
-    ON CONFLICT(user_id,batch_id,source_identity) DO NOTHING
+    ON CONFLICT DO NOTHING
   `).bind(
     id,user.id,batchId,day,platform,identity,sourceUrl,String(title||'').slice(0,200),tokenHash,expiresAt,
     user.id,day,user.id,day,new Date().toISOString(),dailyLimit,
