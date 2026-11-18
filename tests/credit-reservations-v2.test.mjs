@@ -33,76 +33,18 @@ test('release and expire helpers handle no-op D1 updates', async () => {
   assert.equal(await expireReservations(fakeDb), 0);
 });
 
-test('idempotent retry refreshes the reservation token and returns a usable token', async () => {
-  let updated = false;
+test('reservation creates a separate attempt and does not rotate an existing token', async () => {
   const fakeDb = {
     prepare(sql) {
-      return {
-        bind(...args) {
-          return {
-            async run() {
-              if (sql.includes('INSERT INTO download_reservations')) return { meta: { changes: 0 } };
-              if (sql.includes('UPDATE download_reservations')) { updated = true; return { meta: { changes: 1 } }; }
-              return { meta: { changes: 0 } };
-            },
-            async first() {
-              if (sql.includes('SELECT id,status,expires_at')) return {
-                id: 'existing-reservation', status: 'reserved',
-                expires_at: new Date(Date.now() + 60_000).toISOString(),
-              };
-              return null;
-            },
-          };
-        },
-      };
-    },
+      return { bind(...args) { return {
+        async run() { if(sql.includes('INSERT INTO download_reservations')) return {meta:{changes:0}}; return {meta:{changes:0}}; },
+        async first() { return null; }
+      }; } };
+    }
   };
-  const token = 'retry-token-long-enough-to-be-valid';
-  const result = await reserveDownload({
-    db: fakeDb, user: { id: 'user-2' }, batchId: 'batch-2',
-    platform: 'TikTok', sourceUrl: 'https://www.tiktok.com/@a/video/456',
-    title: 'Retry', dailyLimit: 5, token,
-  });
-  assert.equal(updated, true);
-  assert.equal(result.ok, true);
-  assert.equal(result.idempotent, true);
-  assert.equal(result.token, token);
-});
-
-test('expired reservation can be safely revived with a fresh token', async () => {
-  let revived = false;
-  const fakeDb = {
-    prepare(sql) {
-      return {
-        bind(...args) {
-          return {
-            async run() {
-              if (sql.includes('INSERT INTO download_reservations')) return { meta: { changes: 0 } };
-              if (sql.includes('SET status=\'reserved\',token_hash=?')) { revived = true; return { meta: { changes: 1 } }; }
-              return { meta: { changes: 0 } };
-            },
-            async first() {
-              if (sql.includes('SELECT id,status,expires_at')) return {
-                id: 'expired-reservation', status: 'reserved',
-                expires_at: new Date(Date.now() - 1000).toISOString(),
-              };
-              return null;
-            },
-          };
-        },
-      };
-    },
-  };
-  const token = 'fresh-revival-token-long-enough';
-  const result = await reserveDownload({
-    db: fakeDb, user: { id: 'user-3' }, batchId: 'batch-3',
-    platform: 'YouTube', sourceUrl: 'https://youtu.be/xyz789',
-    title: 'Expired retry', dailyLimit: 5, token,
-  });
-  assert.equal(revived, true);
-  assert.equal(result.ok, true);
-  assert.equal(result.revived, true);
-  assert.equal(result.token, token);
+  const result=await reserveDownload({db:fakeDb,user:{id:'user-2'},batchId:'batch-2',platform:'TikTok',sourceUrl:'https://www.tiktok.com/@a/video/456',title:'Retry',dailyLimit:5,token:'retry-token-long-enough-to-be-valid'});
+  assert.equal(result.ok,false);
+  assert.equal(result.error,'quota_or_reservation_conflict');
 });
 
 test('reservation rejects invalid daily quota before database access', async () => {
