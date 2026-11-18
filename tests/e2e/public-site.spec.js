@@ -65,6 +65,42 @@ test.describe('Klypza API smoke and access-control checks', () => {
     expect(batch.status()).toBe(401);
   });
 
+
+  test('public plan API reports the configured limits and sandbox prices', async ({ request }) => {
+    const response = await request.get('/api/plans');
+    expect(response.status()).toBe(200);
+    const data = await response.json();
+    expect(data.testPricing).toBe(true);
+    expect(data.plans).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'free', dailyLimit: 10, batchLimit: 5, ads: true }),
+      expect.objectContaining({ id: 'standard', dailyLimit: 60, batchLimit: 15, ads: false, price: 1 }),
+      expect.objectContaining({ id: 'premium', dailyLimit: 100, batchLimit: 25, ads: false, price: 2 }),
+    ]));
+  });
+
+  test('registration rejects invalid name, email, and password without creating accounts', async ({ request }) => {
+    const validEmail = 'klypza-e2e-invalid@example.invalid';
+    const longPassword = 'ThisIsAnInvalidTestPassword123!';
+
+    const missingName = await request.post('/api/auth/register', {
+      data: { name: '', email: validEmail, password: longPassword },
+    });
+    expect(missingName.status()).toBe(400);
+    expect((await missingName.json()).message).toMatch(/name/i);
+
+    const invalidEmail = await request.post('/api/auth/register', {
+      data: { name: 'E2E Validation', email: 'not-an-email', password: longPassword },
+    });
+    expect(invalidEmail.status()).toBe(400);
+    expect((await invalidEmail.json()).message).toMatch(/email/i);
+
+    const shortPassword = await request.post('/api/auth/register', {
+      data: { name: 'E2E Validation', email: validEmail, password: 'short' },
+    });
+    expect(shortPassword.status()).toBe(400);
+    expect((await shortPassword.json()).message).toMatch(/password/i);
+  });
+
   test('download endpoint requires an authenticated account before processing URLs', async ({ request }) => {
     const response = await request.get('/api/download', {
       params: { url: 'https://www.youtube.com/shorts/abcdefghijk' },
