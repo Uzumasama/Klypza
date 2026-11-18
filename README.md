@@ -57,7 +57,7 @@ The GitHub Actions workflow deploys on pushes to `main` after `CLOUDFLARE_API_TO
 
 The static site includes About, Contact, Privacy Policy, Terms of Use, Copyright Policy, robots.txt, and sitemap.xml. Canonical URLs currently target:
 
-`https://klypza.cokso344.workers.dev/`
+`https://klypza-app.cokso344.workers.dev/`
 
 Revisit the canonical URL, sitemap, and Search Console verification if the production hostname changes.
 
