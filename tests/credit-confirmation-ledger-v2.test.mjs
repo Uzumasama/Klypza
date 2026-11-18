@@ -45,3 +45,30 @@ test('video and generic binary MIME types pass content-type preflight', async ()
     assert.equal(accessed, true);
   }
 });
+
+test('duplicate source charge releases the losing reservation', async () => {
+  let released = false;
+  const reservation = { id:'r2', user_id:'u1', batch_id:'b2', usage_date:'2026-11-18', platform:'YouTube', source_identity:'canonical-source', source_url:'https://example.test/v', title:'Duplicate', status:'reserved', token_hash:'token-hash', expires_at:new Date(Date.now()+60000).toISOString() };
+  const db = {
+    prepare(sql) {
+      return { bind(...args) {
+        return {
+          async first() {
+            if (sql.includes('SELECT id,user_id,batch_id')) return reservation;
+            if (sql.includes('SELECT id FROM confirmed_download_charges WHERE user_id=? AND source_identity=?')) return { id:'charge_other_reservation' };
+            return null;
+          },
+          async run() {
+            if (sql.includes('UPDATE download_reservations SET status=\'released\'')) { released = true; return { meta:{changes:1} }; }
+            return { meta:{changes:0} };
+          }
+        };
+      } };
+    },
+    async batch() { return [{meta:{changes:0}},{meta:{changes:0}},{meta:{changes:0}},{meta:{changes:0}},{meta:{changes:0}}]; }
+  };
+  const result = await confirmDownload({db,userId:'u1',reservationId:'r2',tokenHash:'token-hash',receivedBytes:50,contentType:'video/mp4',dailyLimit:10});
+  assert.equal(result.ok,false);
+  assert.equal(result.error,'already_charged_for_source');
+  assert.equal(released,true);
+});
