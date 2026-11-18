@@ -925,8 +925,8 @@ async function handleYouTubeInfo(parsed, env, user, batchId) {
     if (!/^(144|240|360|480|720|1080)p$/i.test(quality) || seen.has(quality)) continue;
     seen.add(quality);
     const name = `YouTube_${slug(title) || 'video'}_${quality}.mp4`;
-    const sig = await hmac(secret, `${parsed.href}\n${name}\n${expires}\n${user.id}\n${quality}`);
-    const file = `/api/file?u=${encodeURIComponent(parsed.href)}&q=${encodeURIComponent(quality)}&n=${encodeURIComponent(name)}&e=${expires}&s=${sig}`;
+    const sig = await hmac(secret, `${parsed.href}\n${name}\n${expires}\n${user.id}\n${quality}\n${batchId}\n${title}\nYouTube`);
+    const file = `/api/file?u=${encodeURIComponent(parsed.href)}&q=${encodeURIComponent(quality)}&n=${encodeURIComponent(name)}&e=${expires}&s=${sig}&b=${encodeURIComponent(batchId)}&t=${encodeURIComponent(title)}&p=YouTube`;
     items.push({
       type: 'video',
       quality,
