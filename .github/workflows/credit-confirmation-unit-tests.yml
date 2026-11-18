@@ -27,5 +27,6 @@ jobs:
         run: |
           node --check cloudflare/credit-confirmation-v2.mjs
           node --check cloudflare/credit-reservations-v2.mjs
+          node --check cloudflare/credit-confirmation-ledger-v2.mjs
       - name: Run unit tests
-        run: node --test tests/credit-confirmation-v2.test.mjs tests/credit-reservations-v2.test.mjs
+        run: node --test tests/credit-confirmation-v2.test.mjs tests/credit-reservations-v2.test.mjs tests/credit-confirmation-ledger-v2.test.mjs
