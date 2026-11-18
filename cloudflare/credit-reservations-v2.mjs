@@ -47,31 +47,9 @@ export async function reserveDownload({ db, user, batchId, platform, sourceUrl, 
   const result = await statement.run();
   if (Number(result?.meta?.changes) === 1) return { ok: true, id, identity, token, expiresAt, idempotent: false };
 
-  // On an idempotent retry, rotate the secret on the existing active reservation.
-  // This ensures the retry receives a usable token instead of a token-less response.
-  const now = new Date().toISOString();
-  const existing = await db.prepare('SELECT id,status,expires_at FROM download_reservations WHERE user_id=? AND batch_id=? AND source_identity=?').bind(user.id,batchId,identity).first();
-  if (existing && existing.status === 'reserved' && existing.expires_at > now) {
-    const refreshed = await db.prepare(`
-      UPDATE download_reservations SET token_hash=?,expires_at=?
-      WHERE id=? AND user_id=? AND status='reserved' AND expires_at>?
-    `).bind(tokenHash,expiresAt,existing.id,user.id,now).run();
-    if (Number(refreshed?.meta?.changes) === 1) {
-      return { ok: true, id: existing.id, identity, token, expiresAt, idempotent: true };
-    }
-  }
-  // Expired reservation rows keep the UNIQUE key occupied; reactivate only expired
-  // rows, using a guarded UPDATE so concurrent retries cannot both revive it.
-  if (existing && (existing.status === 'expired' || existing.status === 'reserved' && existing.expires_at <= now)) {
-    const revived = await db.prepare(`
-      UPDATE download_reservations
-      SET status='reserved',token_hash=?,expires_at=?,usage_date=?,platform=?,source_url=?,title=?
-      WHERE id=? AND user_id=? AND (status='expired' OR (status='reserved' AND expires_at<=?))
-    `).bind(tokenHash,expiresAt,day,platform,sourceUrl,String(title||'').slice(0,200),existing.id,user.id,now).run();
-    if (Number(revived?.meta?.changes) === 1) {
-      return { ok: true, id: existing.id, identity, token, expiresAt, idempotent: true, revived: true };
-    }
-  }
+  // Reservations are per transfer attempt, not unique per source. This permits
+  // simultaneous quality downloads while the charge ledger still enforces one
+  // charge per user + canonical source.
   return { ok: false, error: 'quota_or_reservation_conflict' };
 }
 
