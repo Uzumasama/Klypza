@@ -37,6 +37,28 @@ test.describe('Klypza public website', () => {
     await expect(downloader).toBeHidden();
   });
 
+  test('dashboard stays hidden on public pages at desktop and mobile widths', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto('/');
+    await expect(page.locator('#dashboardCard')).toBeHidden();
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.reload();
+    await expect(page.locator('#dashboardCard')).toBeHidden();
+  });
+
+  test('plans page matches the agreed Free, Standard and Premium allowances', async ({ page }) => {
+    await page.goto('/plans');
+    await expect(page.getByText('5 videos per batch')).toBeVisible();
+    await expect(page.getByText('10 videos per day')).toBeVisible();
+    await expect(page.getByText('15 videos per batch')).toBeVisible();
+    await expect(page.getByText('60 videos per day')).toBeVisible();
+    await expect(page.getByText('25 videos per batch')).toBeVisible();
+    await expect(page.getByText('100 videos per day')).toBeVisible();
+    await expect(page.getByText('$1.00')).toBeVisible();
+    await expect(page.getByText('$2.00')).toBeVisible();
+  });
+
   test('important public pages return successfully', async ({ request }) => {
     for (const path of ['/about', '/contact', '/privacy-policy', '/terms', '/copyright']) {
       const response = await request.get(path);
