@@ -30,6 +30,8 @@ jobs:
             https://*.workers.dev) echo "Staging URL format accepted." ;;
             *) echo "::error::Only an isolated workers.dev staging URL is allowed."; exit 1 ;;
           esac
+      - name: Check Worker JavaScript syntax
+        run: node --check cloudflare/worker.mjs
       - name: Install dependencies
         run: npm install
       - name: Install Playwright Chromium
