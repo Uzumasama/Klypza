@@ -60,8 +60,8 @@ test.describe('Klypza public website', () => {
     ]) {
       await expect(visiblePlanText(allowance)).toBeVisible();
     }
-    await expect(page.locator('.pricing-card:visible').getByText('$1.00', { exact: true })).toBeVisible();
-    await expect(page.locator('.pricing-card:visible').getByText('$2.00', { exact: true })).toBeVisible();
+    await expect(page.locator('.plan-price:visible').filter({ hasText: '$1.00' })).toBeVisible();
+    await expect(page.locator('.plan-price:visible').filter({ hasText: '$2.00' })).toBeVisible();
   });
 
   test('important public pages return successfully', async ({ request }) => {
