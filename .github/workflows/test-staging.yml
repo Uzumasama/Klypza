@@ -1,0 +1,39 @@
+name: Klypza staging browser tests
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  staging-tests:
+    if: github.ref == 'refs/heads/design/dashboard-profile-refinement'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out staging branch
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Set isolated staging URL
+        run: echo "BASE_URL=https://klypza-staging.cokso344.workers.dev" >> "$GITHUB_ENV"
+      - name: Check Worker JavaScript syntax
+        run: node --check cloudflare/worker.mjs
+      - name: Install dependencies
+        run: npm install
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run browser tests against staging only
+        run: npm run test:e2e
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: klypza-staging-playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
