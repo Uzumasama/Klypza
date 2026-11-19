@@ -20,16 +20,16 @@ jobs:
         uses: actions/checkout@v4
       - name: Verify Cloudflare token is available
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_STAGING_API_TOKEN: ${{ secrets.CLOUDFLARE_STAGING_API_TOKEN }}
         run: |
-          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
-            echo "::error::CLOUDFLARE_API_TOKEN is missing or unavailable."
+          if [ -z "$CLOUDFLARE_STAGING_API_TOKEN" ]; then
+            echo "::error::CLOUDFLARE_STAGING_API_TOKEN is missing or unavailable."
             exit 1
           fi
           echo "Cloudflare API token is available; value is hidden."
       - name: Deploy isolated staging Worker
         uses: cloudflare/wrangler-action@v3
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          apiToken: ${{ secrets.CLOUDFLARE_STAGING_API_TOKEN }}
           wranglerVersion: "4.162.0"
           command: deploy --config wrangler.staging.toml
