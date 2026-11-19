@@ -309,8 +309,8 @@ const SESSION_DAYS = 30;
 const FREE_START_CREDITS = 10;
 const PLAN_LIMITS = {
   free: { daily: 10, batch: 5, price: 0, ads: true, quality: 'basic', queue: 'standard' },
-  standard: { daily: 60, batch: 15, price: 1.00, ads: false, quality: 'expanded', queue: 'faster' },
-  premium: { daily: 100, batch: 25, price: 2.00, ads: false, quality: 'expanded', queue: 'priority' },
+  standard: { daily: 60, batch: 15, price: 5.99, ads: false, quality: 'expanded', queue: 'faster' },
+  premium: { daily: 100, batch: 25, price: 9.99, ads: false, quality: 'expanded', queue: 'priority' },
 };
 function planLimits(plan){ return PLAN_LIMITS[String(plan||'free').toLowerCase()] || PLAN_LIMITS.free; }
 function utcDate(){ return new Date().toISOString().slice(0,10); }
