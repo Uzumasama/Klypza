@@ -465,8 +465,8 @@ async function accountRouter(request, env, url) {
   if (path === '/api/billing/portal' && request.method === 'POST') return createPaddlePortalLink(request,env);
   if (path === '/api/plans' && request.method === 'GET') return json({currency:'USD',billingPeriod:'month',testPricing:true,plans:[
     {id:'free',name:'Free',price:0,dailyLimit:10,batchLimit:5,zip:true,quality:'Basic',queue:'Standard',ads:true,available:true},
-    {id:'standard',name:'Standard',price:1,dailyLimit:60,batchLimit:15,zip:true,quality:'Expanded',queue:'Faster',ads:false,available:true},
-    {id:'premium',name:'Premium',price:2,dailyLimit:100,batchLimit:25,zip:true,quality:'Expanded',queue:'Priority',ads:false,available:true}
+    {id:'standard',name:'Standard',price:5.99,dailyLimit:60,batchLimit:15,zip:true,quality:'Expanded',queue:'Faster',ads:false,available:true},
+    {id:'premium',name:'Premium',price:9.99,dailyLimit:100,batchLimit:25,zip:true,quality:'Expanded',queue:'Priority',ads:false,available:true}
   ]});
   return null;
 }
