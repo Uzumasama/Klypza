@@ -125,7 +125,7 @@ function appPageHtml(path) {
         var dailyLimit = Number(quota.dailyLimit);
         var plan = String((activeSub && activeSub.plan) || data.plan || user.plan || (dailyLimit >= 100 ? 'premium' : dailyLimit >= 60 ? 'standard' : 'free')).toLowerCase();
         if (!['free','standard','premium'].includes(plan)) plan = dailyLimit >= 100 ? 'premium' : dailyLimit >= 60 ? 'standard' : 'free';
-        if (!Number.isFinite(dailyLimit) || dailyLimit <= 0) dailyLimit = plan === 'premium' ? 100 : plan === 'standard' ? 60 : 10;
+        if (!Number.isFinite(dailyLimit) || dailyLimit <= 0) dailyLimit = plan === 'premium' ? 100 : plan === 'standard' ? 60 : 5;
         var maxBatch = Number(quota.maxBatch) || (plan === 'premium' ? 25 : plan === 'standard' ? 15 : 5);
         var usedToday = Number(quota.usedToday);
         if (!Number.isFinite(usedToday) || usedToday < 0) usedToday = 0;
@@ -338,9 +338,9 @@ html = html.replace('</body>', tabController + profileDataController + passwordT
 
 const SESSION_COOKIE = 'klypza_session';
 const SESSION_DAYS = 30;
-const FREE_START_CREDITS = 10;
+const FREE_START_CREDITS = 5;
 const PLAN_LIMITS = {
-  free: { daily: 10, batch: 5, price: 0, ads: true, quality: 'basic', queue: 'standard' },
+  free: { daily: 5, batch: 5, price: 0, ads: true, quality: 'basic', queue: 'standard' },
   standard: { daily: 60, batch: 15, price: 0.10, ads: false, quality: 'expanded', queue: 'faster' },
   premium: { daily: 100, batch: 25, price: 0.20, ads: false, quality: 'expanded', queue: 'priority' },
 };
@@ -495,7 +495,7 @@ async function accountRouter(request, env, url) {
   if (path === '/api/billing/checkout' && request.method === 'POST') return createPaddleCheckout(request,env);
   if (path === '/api/billing/portal' && request.method === 'POST') return createPaddlePortalLink(request,env);
   if (path === '/api/plans' && request.method === 'GET') return json({currency:'USD',billingPeriod:'month',testPricing:true,plans:[
-    {id:'free',name:'Free',price:0,dailyLimit:10,batchLimit:5,zip:true,quality:'Basic',queue:'Standard',ads:true,available:true},
+    {id:'free',name:'Free',price:0,dailyLimit:5,batchLimit:5,zip:true,quality:'Basic',queue:'Standard',ads:true,available:true},
     {id:'standard',name:'Standard',price:1,dailyLimit:60,batchLimit:15,zip:true,quality:'Expanded',queue:'Faster',ads:false,available:true},
     {id:'premium',name:'Premium',price:2,dailyLimit:100,batchLimit:25,zip:true,quality:'Expanded',queue:'Priority',ads:false,available:true}
   ]});
@@ -660,7 +660,7 @@ async function verifyEmailToken(url,env){
     env.KLYPZA_DB.prepare('DELETE FROM email_verification_tokens WHERE token_hash=?').bind(tokenHash)
   ]);
   const user=await env.KLYPZA_DB.prepare('SELECT email_verified FROM users WHERE id=?').bind(row.user_id).first();
-  return verificationResultPage(Number(user?.email_verified)===1,'Your email address is verified. You can now use your Klypza account and your 10 free credits.');
+  return verificationResultPage(Number(user?.email_verified)===1,'Your email address is verified. You can now use your Klypza account and your 5 free credits.');
 }
 function verificationResultPage(ok,message){
   const safe=String(message).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
