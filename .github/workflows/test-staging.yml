@@ -1,6 +1,9 @@
 name: Klypza staging browser tests
 
 on:
+  push:
+    branches:
+      - design/dashboard-profile-refinement
   workflow_dispatch:
 
 permissions:
