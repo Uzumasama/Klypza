@@ -1,0 +1,49 @@
+name: Klypza staging browser tests
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  staging-tests:
+    if: github.ref == 'refs/heads/design/dashboard-profile-refinement'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out staging branch
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify staging URL is configured
+        env:
+          KLYPZA_STAGING_BASE_URL: ${{ secrets.KLYPZA_STAGING_BASE_URL }}
+        run: |
+          if [ -z "$KLYPZA_STAGING_BASE_URL" ]; then
+            echo "::error::Add the staging Worker URL as the KLYPZA_STAGING_BASE_URL repository secret."
+            exit 1
+          fi
+          case "$KLYPZA_STAGING_BASE_URL" in
+            https://*.workers.dev) echo "Staging URL format accepted." ;;
+            *) echo "::error::Only an isolated workers.dev staging URL is allowed."; exit 1 ;;
+          esac
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run browser tests against staging only
+        run: npm run test:e2e
+        env:
+          BASE_URL: ${{ secrets.KLYPZA_STAGING_BASE_URL }}
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: klypza-staging-playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
