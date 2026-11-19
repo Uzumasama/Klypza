@@ -72,7 +72,7 @@ test.describe('Klypza API smoke and access-control checks', () => {
     const data = await response.json();
     expect(data.testPricing).toBe(true);
     expect(data.plans).toEqual(expect.arrayContaining([
-      expect.objectContaining({ id: 'free', dailyLimit: 5, batchLimit: 5, ads: true }),
+      expect.objectContaining({ id: 'free', dailyLimit: 10, batchLimit: 5, ads: true }),
       expect.objectContaining({ id: 'standard', dailyLimit: 60, batchLimit: 15, ads: false, price: 1 }),
       expect.objectContaining({ id: 'premium', dailyLimit: 100, batchLimit: 25, ads: false, price: 2 }),
     ]));
