@@ -128,6 +128,39 @@ test.describe('Klypza API smoke and access-control checks', () => {
     expect((await shortPassword.json()).message).toMatch(/password/i);
   });
 
+  test('authentication and account endpoints protect private data and mutations', async ({ request }) => {
+    const session = await request.get('/api/auth/me');
+    expect(session.status()).toBe(401);
+    expect(await session.json()).toMatchObject({ authenticated: false });
+
+    const profile = await request.post('/api/account/profile', {
+      data: { name: 'Unauthorized Test' },
+    });
+    expect(profile.status()).toBe(401);
+
+    const password = await request.post('/api/account/password', {
+      data: { currentPassword: 'invalid', newPassword: 'NotARealPassword123!' },
+    });
+    expect(password.status()).toBe(401);
+
+    const checkout = await request.post('/api/billing/checkout', {
+      data: { plan: 'standard' },
+    });
+    expect(checkout.status()).toBe(401);
+
+    const portal = await request.post('/api/billing/portal');
+    expect(portal.status()).toBe(401);
+  });
+
+  test('login rejects unknown test account without creating a session', async ({ request }) => {
+    const response = await request.post('/api/auth/login', {
+      data: { email: 'klypza-e2e-no-account@example.invalid', password: 'InvalidTestPassword123!' },
+    });
+    expect([400, 401]).toContain(response.status());
+    const session = await request.get('/api/auth/me');
+    expect(session.status()).toBe(401);
+  });
+
   test('download endpoint requires an authenticated account before processing URLs', async ({ request }) => {
     const response = await request.get('/api/download', {
       params: { url: 'https://www.youtube.com/shorts/abcdefghijk' },
