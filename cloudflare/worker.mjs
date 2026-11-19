@@ -22,7 +22,7 @@ const INDEX_HTML = "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta name=\"mo
 #dashboardCard #overviewPanel .steps-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
 #dashboardCard #overviewPanel #video-tool{width:100%;max-width:none!important}
 @media(min-width:901px){
- #dashboardCard{display:grid!important;grid-template-columns:minmax(210px,260px) minmax(0,1fr)!important;column-gap:26px!important;row-gap:20px!important;align-items:start!important}
+ #dashboardCard{display:grid!important;grid-template-columns:minmax(210px,260px) minmax(0,1fr)!important;column-gap:26px!important;row-gap:20px!important;align-items:start!important}#dashboardCard[style*="display:none"],#dashboardCard[style*="display: none"]{display:none!important}
  #dashboardCard>.dashboard-welcome,#dashboardCard>#emailVerifyNotice{grid-column:1/-1!important}
  #dashboardCard>.dashboard-side-menu{grid-column:1!important;grid-row:3!important;position:sticky;top:24px;align-self:start;width:100%;margin:0!important}
  #dashboardCard>#overviewPanel,#dashboardCard>#profilePanel,#dashboardCard>#plansPanel{grid-column:2!important;grid-row:3!important;min-width:0!important}
@@ -341,8 +341,8 @@ const SESSION_DAYS = 30;
 const FREE_START_CREDITS = 10;
 const PLAN_LIMITS = {
   free: { daily: 10, batch: 5, price: 0, ads: true, quality: 'basic', queue: 'standard' },
-  standard: { daily: 60, batch: 15, price: 0.10, ads: false, quality: 'expanded', queue: 'faster' },
-  premium: { daily: 100, batch: 25, price: 0.20, ads: false, quality: 'expanded', queue: 'priority' },
+  standard: { daily: 60, batch: 15, price: 1.00, ads: false, quality: 'expanded', queue: 'faster' },
+  premium: { daily: 100, batch: 25, price: 2.00, ads: false, quality: 'expanded', queue: 'priority' },
 };
 function planLimits(plan){ return PLAN_LIMITS[String(plan||'free').toLowerCase()] || PLAN_LIMITS.free; }
 function utcDate(){ return new Date().toISOString().slice(0,10); }
