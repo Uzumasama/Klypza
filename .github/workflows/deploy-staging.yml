@@ -28,8 +28,21 @@ jobs:
             exit 1
           fi
           echo "Cloudflare API token is available; value is hidden."
-      # Application service secrets are intentionally optional at deployment time.
-      # Configure isolated SaveAPI, Resend and Paddle Sandbox credentials before testing those features.
+      - name: Verify Resend staging secret is available
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+        run: |
+          if [ -z "$RESEND_API_KEY" ]; then
+            echo "::error::RESEND_API_KEY is missing from the staging environment."
+            exit 1
+          fi
+          echo "Resend API key is available; value is hidden."
+      - name: Apply Resend secret to staging Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_STAGING_API_TOKEN }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+        run: |
+          printf '%s' "$RESEND_API_KEY" | npx --yes wrangler@4.162.0 secret put RESEND_API_KEY --config wrangler.staging.toml
       - name: Validate Worker JavaScript syntax
         run: node --check cloudflare/worker.mjs
       - name: Deploy isolated staging Worker
