@@ -31,7 +31,7 @@ jobs:
             *) echo "::error::Only an isolated workers.dev staging URL is allowed."; exit 1 ;;
           esac
       - name: Install dependencies
-        run: npm ci
+        run: npm install
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
       - name: Run browser tests against staging only
