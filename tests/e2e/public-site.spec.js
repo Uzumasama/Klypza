@@ -49,14 +49,19 @@ test.describe('Klypza public website', () => {
 
   test('plans page matches the agreed Free, Standard and Premium allowances', async ({ page }) => {
     await page.goto('/plans');
-    await expect(page.getByText('5 videos per batch', { exact: true }).first()).toBeVisible();
-    await expect(page.getByText('10 videos per day', { exact: true }).first()).toBeVisible();
-    await expect(page.getByText('15 videos per batch', { exact: true }).first()).toBeVisible();
-    await expect(page.getByText('60 videos per day', { exact: true }).first()).toBeVisible();
-    await expect(page.getByText('25 videos per batch', { exact: true }).first()).toBeVisible();
-    await expect(page.getByText('100 videos per day', { exact: true }).first()).toBeVisible();
-    await expect(page.getByText('$1.00', { exact: true }).first()).toBeVisible();
-    await expect(page.getByText('$2.00', { exact: true }).first()).toBeVisible();
+    const visiblePlanText = (text) => page.locator('li:visible').getByText(text, { exact: true });
+    for (const allowance of [
+      '5 videos per batch',
+      '10 videos per day',
+      '15 videos per batch',
+      '60 videos per day',
+      '25 videos per batch',
+      '100 videos per day',
+    ]) {
+      await expect(visiblePlanText(allowance)).toBeVisible();
+    }
+    await expect(page.locator('.pricing-card:visible').getByText('$1.00', { exact: true })).toBeVisible();
+    await expect(page.locator('.pricing-card:visible').getByText('$2.00', { exact: true })).toBeVisible();
   });
 
   test('important public pages return successfully', async ({ request }) => {
