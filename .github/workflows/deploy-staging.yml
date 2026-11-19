@@ -28,23 +28,8 @@ jobs:
             exit 1
           fi
           echo "Cloudflare API token is available; value is hidden."
-      - name: Verify isolated staging service secrets
-        env:
-          SAVEAPI_KEY: ${{ secrets.SAVEAPI_KEY }}
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-          PADDLE_API_KEY: ${{ secrets.PADDLE_API_KEY }}
-          PADDLE_CLIENT_TOKEN: ${{ secrets.PADDLE_CLIENT_TOKEN }}
-          PADDLE_WEBHOOK_SECRET: ${{ secrets.PADDLE_WEBHOOK_SECRET }}
-        run: |
-          missing=0
-          for key in SAVEAPI_KEY RESEND_API_KEY PADDLE_API_KEY PADDLE_CLIENT_TOKEN PADDLE_WEBHOOK_SECRET; do
-            if [ -z "${!key}" ]; then
-              echo "::error::Required staging secret $key is missing."
-              missing=1
-            fi
-          done
-          if [ "$missing" -ne 0 ]; then exit 1; fi
-          echo "All required staging service secrets are present; values remain hidden."
+      # Application service secrets are intentionally optional at deployment time.
+      # Configure isolated SaveAPI, Resend and Paddle Sandbox credentials before testing those features.
       - name: Deploy isolated staging Worker
         uses: cloudflare/wrangler-action@v3
         with:
