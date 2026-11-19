@@ -13,5 +13,5 @@ enabled = true
 
 [[d1_databases]]
 binding = "KLYPZA_DB"
-database_name = "klypza-test"
-database_id = "2f1931bf-89fe-4a5b-a2fc-cac7cde012c2"
+database_name = "klypza-qa"
+database_id = "dec06fcf-465a-4438-aa61-478fe73c02a4"
