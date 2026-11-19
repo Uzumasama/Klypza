@@ -167,6 +167,14 @@ test.describe('Klypza API smoke and access-control checks', () => {
     expect(session.status()).toBe(401);
   });
 
+  test('download cancellation is protected and cannot mutate another account without a session', async ({ request }) => {
+    const response = await request.post('/api/download/cancel', {
+      data: { id: '11111111-1111-4111-8111-111111111111' },
+    });
+    expect(response.status()).toBe(401);
+    expect(await response.json()).toMatchObject({ error: 'login_required' });
+  });
+
   test('download endpoint requires an authenticated account before processing URLs', async ({ request }) => {
     const response = await request.get('/api/download', {
       params: { url: 'https://www.youtube.com/shorts/abcdefghijk' },
