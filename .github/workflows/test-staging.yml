@@ -18,18 +18,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Verify staging URL is configured
-        env:
-          KLYPZA_STAGING_BASE_URL: ${{ secrets.KLYPZA_STAGING_BASE_URL }}
-        run: |
-          if [ -z "$KLYPZA_STAGING_BASE_URL" ]; then
-            echo "::error::Add the staging Worker URL as the KLYPZA_STAGING_BASE_URL repository secret."
-            exit 1
-          fi
-          case "$KLYPZA_STAGING_BASE_URL" in
-            https://*.workers.dev) echo "Staging URL format accepted." ;;
-            *) echo "::error::Only an isolated workers.dev staging URL is allowed."; exit 1 ;;
-          esac
+      - name: Set isolated staging URL
+        run: echo "BASE_URL=https://klypza-staging.cokso344.workers.dev" >> "$GITHUB_ENV"
       - name: Check Worker JavaScript syntax
         run: node --check cloudflare/worker.mjs
       - name: Install dependencies
@@ -38,8 +28,6 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Run browser tests against staging only
         run: npm run test:e2e
-        env:
-          BASE_URL: ${{ secrets.KLYPZA_STAGING_BASE_URL }}
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
