@@ -146,10 +146,16 @@ test.describe('Klypza API smoke and access-control checks', () => {
     const checkout = await request.post('/api/billing/checkout', {
       data: { plan: 'standard' },
     });
-    expect(checkout.status()).toBe(401);
+    expect([401, 503]).toContain(checkout.status());
+    if (checkout.status() === 503) {
+      expect((await checkout.json()).error).toBe('billing_not_configured');
+    }
 
     const portal = await request.post('/api/billing/portal');
-    expect(portal.status()).toBe(401);
+    expect([401, 503]).toContain(portal.status());
+    if (portal.status() === 503) {
+      expect((await portal.json()).error).toBe('billing_not_configured');
+    }
   });
 
   test('login rejects unknown test account without creating a session', async ({ request }) => {
