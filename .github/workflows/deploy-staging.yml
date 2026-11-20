@@ -1,6 +1,9 @@
 name: Deploy Klypza staging Worker
 
 on:
+  push:
+    branches:
+      - design/dashboard-profile-refinement
   workflow_dispatch:
 
 permissions:
@@ -62,3 +65,23 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_STAGING_API_TOKEN }}
           wranglerVersion: "4.162.0"
           command: deploy --config wrangler.staging.toml
+      - name: Smoke-test staging routes and plan catalog
+        run: |
+          node --input-type=module <<'NODE'
+          const base = 'https://klypza-staging.cokso344.workers.dev';
+          for (const path of ['/', '/plans', '/login', '/register']) {
+            const response = await fetch(base + path);
+            if (!response.ok) throw new Error(path + ' returned HTTP ' + response.status);
+          }
+          const response = await fetch(base + '/api/plans', { headers: { accept: 'application/json' } });
+          if (!response.ok) throw new Error('/api/plans returned HTTP ' + response.status);
+          const data = await response.json();
+          const expected = { free: [0, 10, 5], standard: [5.99, 60, 15], premium: [9.99, 100, 25] };
+          for (const [id, values] of Object.entries(expected)) {
+            const plan = data.plans?.find(item => item.id === id);
+            if (!plan || plan.price !== values[0] || plan.dailyLimit !== values[1] || plan.batchLimit !== values[2]) {
+              throw new Error('Unexpected plan catalog values for ' + id + ': ' + JSON.stringify(plan));
+            }
+          }
+          console.log('Staging routes and plan catalog passed.');
+          NODE
