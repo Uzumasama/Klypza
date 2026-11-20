@@ -57,7 +57,10 @@ function appPageHtml(path) {
     });
   }
   var accountToggle = document.getElementById('accountMenuToggle');
-  var accountContent = document.getElementById('accountMenuContent');\n  if (accountToggle && accountContent) {\n    accountToggle.addEventListener('click', function () {\n      var expanded = accountToggle.getAttribute('aria-expanded') === 'true';\n      accountToggle.setAttribute('aria-expanded', expanded ? 'false' : 'true');\n      accountContent.hidden = expanded;\n    });\n  }\n  window.klypzaShowPanel = showKlypzaPanel;
+  var accountContent = document.getElementById('accountMenuContent');
+  if (accountToggle && accountContent) {
+    accountToggle.addEventListener('click', function () {
+      var expanded = accountToggle.getAttribute('aria-expanded') === 'true';\n      accountToggle.setAttribute('aria-expanded', expanded ? 'false' : 'true');\n      accountContent.hidden = expanded;\n    });\n  }\n  window.klypzaShowPanel = showKlypzaPanel;
   document.addEventListener('click', function (event) {
     var node = event.target;
     var tab = node && node.closest ? node.closest('#dashboardCard .profile-tab') : null;
@@ -284,7 +287,8 @@ const monetagFreeOnlyController = `<script>
         else if (maxBatch >= 15 && plan === 'free') plan = 'standard';
         document.querySelectorAll('#dashboardCard .ad-slot').forEach(function (slot) { slot.hidden = true; slot.style.display = 'none'; });
         if (plan !== 'free' || document.getElementById('monetag-zone-12250392')) return;
-        var script = document.createElement('script');\n        script.id = 'monetag-zone-12250392';
+        var script = document.createElement('script');
+        script.id = 'monetag-zone-12250392';
         script.dataset.zone = '12250392';
         script.src = 'https://nap5k.com/tag.min.js';
         script.async = true;
