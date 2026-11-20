@@ -275,11 +275,11 @@ function appPageHtml(path) {
 </script>`;
 const monetagFreeOnlyController = `<script>
 (function () {
-  function hideAdPlaceholders() {
+  function setAdPlacementVisible(visible) {
     document.querySelectorAll('#dashboardCard .ad-slot').forEach(function (slot) {
-      slot.hidden = true;
-      slot.style.display = 'none';
-      slot.setAttribute('aria-hidden', 'true');
+      slot.hidden = !visible;
+      slot.style.display = visible ? '' : 'none';
+      slot.setAttribute('aria-hidden', visible ? 'false' : 'true');
     });
   }
   function loadFreePlanBanner() {
@@ -289,21 +289,28 @@ const monetagFreeOnlyController = `<script>
     script.dataset.zone = '12250392';
     script.src = 'https://nap5k.com/tag.min.js';
     script.async = true;
+    script.onerror = function () {
+      console.warn('KLYPZA_MONETAG_LOAD_FAILED');
+    };
     (document.head || document.documentElement).appendChild(script);
   }
   function applyAdPolicy(data) {
-    hideAdPlaceholders();
-    if (!data || !data.user) return;
-    var subscription = data.subscription && String(data.subscription.status || '').toLowerCase() === 'active'
-      ? data.subscription : null;
+    if (!data || !data.user) {
+      setAdPlacementVisible(false);
+      return;
+    }
+    var subscriptionStatus = String(data.subscription && data.subscription.status || '').toLowerCase();
+    var subscription = ['active', 'trialing'].includes(subscriptionStatus) ? data.subscription : null;
     var plan = String((subscription && subscription.plan) || data.plan || data.user.plan || 'free').toLowerCase();
-    if (plan === 'free') loadFreePlanBanner();
+    var isFree = plan === 'free';
+    setAdPlacementVisible(isFree);
+    if (isFree) loadFreePlanBanner();
   }
   function init() {
     fetch('/api/account', { credentials: 'same-origin', cache: 'no-store' })
-      .then(function (response) { if (!response.ok) return null; return response.json(); })
+      .then(function (response) { if (!response.ok) throw new Error('Account status unavailable'); return response.json(); })
       .then(applyAdPolicy)
-      .catch(function () { hideAdPlaceholders(); });
+      .catch(function () { setAdPlacementVisible(false); });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
