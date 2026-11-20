@@ -292,7 +292,9 @@ const monetagFreeOnlyController = `<script>
     script.onerror = function () {
       console.warn('KLYPZA_MONETAG_LOAD_FAILED');
     };
-    (document.head || document.documentElement).appendChild(script);
+    // Match the exact Monetag installation pattern supplied for zone 12250392:
+    // append to body when available, otherwise to the document element.
+    (document.body || document.documentElement).appendChild(script);
   }
   function applyAdPolicy(data) {
     if (!data || !data.user) {
