@@ -282,36 +282,16 @@ const monetagFreeOnlyController = `<script>
       slot.setAttribute('aria-hidden', visible ? 'false' : 'true');
     });
   }
-  function loadFreePlanBanner() {
-    if (document.querySelector('script[data-klypza-monetag="12250392"]')) return;
-    var script = document.createElement('script');
-    script.dataset.klypzaMonetag = '12250392';
-    script.dataset.zone = '12250392';
-    script.src = 'https://nap5k.com/tag.min.js';
-    script.async = true;
-    script.onerror = function () {
-      console.warn('KLYPZA_MONETAG_LOAD_FAILED');
-    };
-    // Match the exact Monetag installation pattern supplied for zone 12250392:
-    // append to body when available, otherwise to the document element.
-    (document.body || document.documentElement).appendChild(script);
-  }
-  function applyAdPolicy(data) {
-    if (!data || !data.user) {
-      setAdPlacementVisible(false);
-      return;
-    }
-    var subscriptionStatus = String(data.subscription && data.subscription.status || '').toLowerCase();
-    var subscription = ['active', 'trialing'].includes(subscriptionStatus) ? data.subscription : null;
-    var plan = String((subscription && subscription.plan) || data.plan || data.user.plan || 'free').toLowerCase();
-    var isFree = plan === 'free';
-    setAdPlacementVisible(isFree);
-    if (isFree) loadFreePlanBanner();
-  }
   function init() {
     fetch('/api/account', { credentials: 'same-origin', cache: 'no-store' })
       .then(function (response) { if (!response.ok) throw new Error('Account status unavailable'); return response.json(); })
-      .then(applyAdPolicy)
+      .then(function (data) {
+        var status = String(data.subscription && data.subscription.status || '').toLowerCase();
+        var entitled = ['active', 'trialing'].includes(status) ||
+          (status === 'past_due' && data.subscription.current_period_end && Date.parse(data.subscription.current_period_end) > Date.now());
+        var plan = String((entitled && data.subscription.plan) || data.plan || data.user && data.user.plan || 'free').toLowerCase();
+        setAdPlacementVisible(plan === 'free');
+      })
       .catch(function () { setAdPlacementVisible(false); });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
@@ -894,7 +874,31 @@ export default {
     if (url.pathname === '/api/paddle/webhook') return await handlePaddleWebhook(request,env);
     if (url.pathname === '/reset-password' && request.method === 'GET') return resetPasswordPage(url);
     if (url.pathname === '/' || ['/login','/register','/dashboard','/plans'].includes(url.pathname)) {
-      return new Response(appPageHtml(url.pathname),{headers:securityHeaders({'content-type':'text/html; charset=utf-8','cache-control':'no-cache'})});
+      let pageHtml = appPageHtml(url.pathname);
+      // Serve Monetag's zone tag in the document head only for authenticated Free accounts.
+      // Monetag's installation guidance requires the tag near the opening <head>; client-side
+      // insertion after an API request can be missed by its installation checker and delay delivery.
+      if (url.pathname === '/dashboard') {
+        const adUser = await getSessionUser(request, env);
+        if (adUser) {
+          let adPlan = String(adUser.plan || 'free').toLowerCase();
+          const adSubscription = await env.KLYPZA_DB.prepare(
+            "SELECT plan,status,current_period_end,provider FROM subscriptions WHERE user_id=? ORDER BY updated_at DESC, created_at DESC LIMIT 1"
+          ).bind(adUser.id).first();
+          if (adSubscription && adSubscription.provider === 'paddle') {
+            const adStatus = String(adSubscription.status || '').toLowerCase();
+            const inPaidPeriod = adStatus === 'past_due' && adSubscription.current_period_end && Date.parse(adSubscription.current_period_end) > Date.now();
+            adPlan = (['active','trialing'].includes(adStatus) || inPaidPeriod)
+              ? String(adSubscription.plan || adPlan).toLowerCase()
+              : 'free';
+          }
+          if (adPlan === 'free') {
+            const monetagTag = '<script data-cfasync="false" data-zone="12250392" src="https://nap5k.com/tag.min.js" async></script>';
+            pageHtml = pageHtml.replace('<head>', '<head>\\n' + monetagTag);
+          }
+        }
+      }
+      return new Response(pageHtml,{headers:securityHeaders({'content-type':'text/html; charset=utf-8','cache-control':'no-cache'})});
     }
     if (url.pathname === '/brand-icon.webp' || url.pathname === '/brand-wordmark.webp' || url.pathname === '/footer-wordmark-white.webp') {
       const assetName = url.pathname.slice(1);
