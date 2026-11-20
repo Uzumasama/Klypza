@@ -793,6 +793,9 @@ async function accountOverview(request,env){
   const subscriptionEntitled=['active','trialing'].includes(subscriptionStatus)||Boolean(pastDueWithinPaidPeriod);
   const requestedPlan=String(subscription?.provider==='paddle'?(subscriptionEntitled?subscription.plan:'free'):user.plan||'free').toLowerCase();
   const effectivePlan=['free','standard','premium'].includes(requestedPlan)?requestedPlan:'free';
+  if(String(user.plan||'free').toLowerCase()!==effectivePlan){
+    await env.KLYPZA_DB.prepare('UPDATE users SET plan=?,updated_at=CURRENT_TIMESTAMP WHERE id=?').bind(effectivePlan,user.id).run();
+  }
   const limits=planLimits(effectivePlan);
   const used=Number(usedRow?.used||0);
   const safeUser=publicUser(user);
