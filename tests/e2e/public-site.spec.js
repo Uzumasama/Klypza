@@ -81,6 +81,65 @@ test.describe('Klypza API smoke and access-control checks', () => {
     expect(billingConfig.status()).toBe(paidPlansAvailable ? 200 : 503);
   });
 
+  test('public plan cards reflect server pricing and Paddle readiness', async ({ page, request }) => {
+    const response = await request.get('/api/plans');
+    expect(response.status()).toBe(200);
+    const data = await response.json();
+    await page.goto('/');
+    await expect(page.locator('[data-plan-card="free"]')).toContainText('5 videos per day');
+    for (const plan of data.plans.filter(item => item.id === 'standard' || item.id === 'premium')) {
+      const card = page.locator('[data-plan-card="' + plan.id + '"]');
+      await expect(card.locator('.plan-price')).toContainText('
+    const response = await request.post('/api/download/cancel', { data: { id: '00000000-0000-4000-8000-000000000000' } });
+    expect(response.status()).toBe(401);
+  });
+
+  test('Paddle webhook never accepts an unsigned event', async ({ request }) => {
+    const response = await request.post('/api/paddle/webhook', { data: { event_id: 'e2e-unsigned', event_type: 'subscription.updated', data: {} } });
+    expect([401, 503]).toContain(response.status());
+    const data = await response.json();
+    expect(data.ok).not.toBe(true);
+  });
+
+  test('registration rejects invalid name, email, and password without creating accounts', async ({ request }) => {
+    const validEmail = 'klypza-e2e-invalid@example.invalid';
+    const longPassword = 'ThisIsAnInvalidTestPassword123!';
+
+    const missingName = await request.post('/api/auth/register', {
+      data: { name: '', email: validEmail, password: longPassword },
+    });
+    expect(missingName.status()).toBe(400);
+    expect((await missingName.json()).message).toMatch(/name/i);
+
+    const invalidEmail = await request.post('/api/auth/register', {
+      data: { name: 'E2E Validation', email: 'not-an-email', password: longPassword },
+    });
+    expect(invalidEmail.status()).toBe(400);
+    expect((await invalidEmail.json()).message).toMatch(/email/i);
+
+    const shortPassword = await request.post('/api/auth/register', {
+      data: { name: 'E2E Validation', email: validEmail, password: 'short' },
+    });
+    expect(shortPassword.status()).toBe(400);
+    expect((await shortPassword.json()).message).toMatch(/password/i);
+  });
+
+  test('download endpoint requires an authenticated account before processing URLs', async ({ request }) => {
+    const response = await request.get('/api/download', {
+      params: { url: 'https://www.youtube.com/shorts/abcdefghijk' },
+    });
+    expect(response.status()).toBe(401);
+    const data = await response.json();
+    expect(data.error).toBe('login_required');
+  });
+});
+ + Number(plan.price).toFixed(2));
+      const button = card.locator('button[data-paddle-plan]');
+      if (plan.available) await expect(button).toBeEnabled();
+      else await expect(button).toBeDisabled();
+    }
+  });
+
   test('download cancellation requires an authenticated account', async ({ request }) => {
     const response = await request.post('/api/download/cancel', { data: { id: '00000000-0000-4000-8000-000000000000' } });
     expect(response.status()).toBe(401);
