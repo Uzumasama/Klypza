@@ -858,7 +858,7 @@ export default {
   async fetch(request, env) {
   const url = new URL(request.url);
   try {
-    if (url.pathname === '/sw.js' && request.method === 'GET') return new Response("self.options = {\n    \"domain\": \"3nbf4.com\",\n    \"zoneId\": 12250376\n}\nself.lary = \"\"\nimportScripts('https://3nbf4.com/act/files/service-worker.min.js?r=sw')\n",{headers:securityHeaders({'content-type':'application/javascript; charset=utf-8','cache-control':'public,max-age=300','service-worker-allowed':'/'})});
+    if (url.pathname === '/sw.js' && request.method === 'GET') return new Response("self.addEventListener('install',function(event){event.waitUntil(self.skipWaiting());});\\nself.addEventListener('activate',function(event){event.waitUntil((async function(){await self.registration.unregister();var clients=await self.clients.matchAll({type:'window',includeUncontrolled:true});clients.forEach(function(client){client.navigate(client.url);});})());});\\n",{headers:securityHeaders({'content-type':'application/javascript; charset=utf-8','cache-control':'no-store','service-worker-allowed':'/'})});
     if (url.pathname === '/api/paddle/webhook') return await handlePaddleWebhook(request,env);
     if (url.pathname === '/reset-password' && request.method === 'GET') return resetPasswordPage(url);
     if (url.pathname === '/' || ['/login','/register','/dashboard','/plans'].includes(url.pathname)) {
