@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - integration/production-worker-reconciliation
+      - fix/production-readiness-2026-11-20
+  pull_request:
+    branches:
+      - integration/production-worker-reconciliation
   workflow_dispatch:
 
 permissions:

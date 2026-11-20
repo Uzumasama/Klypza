@@ -2,65 +2,112 @@
 
 **Your Media, One Simple Download.**
 
-Klypza is a responsive, video-only web tool for processing supported public video links from TikTok, Instagram Reels, Facebook Reels, YouTube Shorts, and Pinterest video Pins.
+Klypza is an independent, responsive service for processing supported public video-post links from TikTok, Instagram Reels, Facebook Reels, YouTube Shorts and Pinterest video Pins. Users can select individual files or organize downloads into quality-matched ZIP batches.
 
-## Product scope
+## Product limits
 
-- Video links only; photo and profile downloads are not supported.
-- Supports one or multiple direct public video-post URLs.
-- Platform selector validates that each URL matches the selected platform.
-- Results are kept in the same order as submitted links.
-- Individual downloads and quality-grouped ZIP batches.
-- Duplicate URLs are filtered by the response normalizer and batch grouping avoids repeating the same source in a quality group.
-- English interface, mobile-first layout, and informational pages.
+| Plan | Daily allowance | Maximum batch | Advertising |
+|---|---:|---:|---|
+| Free | 5 videos/day | 5 videos | Monetag ads |
+| Standard | 60 videos/day | 15 videos | Ad-free |
+| Premium | 100 videos/day | 25 videos | Ad-free |
+
+Each successfully transferred video consumes one credit. Choosing a quality or previewing a result does not consume a credit. Failed provider requests and cancelled transfers must release their reservation without charging the user.
+
+Paid-plan pricing:
+- Paddle Sandbox: Standard $1/month; Premium $2/month (test prices only).
+- Planned production pricing: Standard $4.99/month; Premium $8.99/month.
+- Production checkout remains blocked until production Paddle price IDs and credentials are configured and verified.
 
 ## Architecture
 
-- Static frontend: `public/`
-- Cloudflare Worker API: `cloudflare/worker.mjs`
-- Worker configuration and static asset binding: `wrangler.toml`
-- Video processing provider: SaveAPI (server-side only)
+- Cloudflare Worker API and application pages: `cloudflare/worker.mjs`
+- Production Worker: `klypza-app`
+- Staging Worker: `klypza-staging`
+- Production D1: `klypza_accounts`
+- Staging D1: `klypza-qa`
+- Video processing: SaveAPI (server-side only)
+- Email verification and account email: Resend
+- Subscription billing: Paddle Billing
+- Free-plan advertising: Monetag
 
-The SaveAPI integration uses the provider's API endpoints from the Worker. Never expose the API key in browser JavaScript, HTML, GitHub commits, or public issue reports.
+Never expose API keys, client secrets, webhook secrets, session tokens, or database exports in browser code, public commits, issue reports, or public artifacts.
 
-## Cloudflare configuration
+## Cloudflare Worker bindings
 
-Required Worker secret:
+Required D1 binding:
+- `KLYPZA_DB`: the database for the target environment.
 
-- `SAVEAPI_KEY`: a valid SaveAPI API key, configured with Wrangler secret or in the Cloudflare dashboard.
+Required secrets for all environments:
+- `SAVEAPI_KEY`
+- `RESEND_API_KEY`
 
-Optional Worker variable:
+Paddle Sandbox secrets:
+- `PADDLE_API_KEY`
+- `PADDLE_CLIENT_TOKEN`
+- `PADDLE_WEBHOOK_SECRET`
 
-- `MAX_PROXY_BYTES`: maximum response size proxied through the Worker. Defaults to 19,500,000 bytes.
+Separate Paddle production secrets (required only when `PADDLE_ENV=production`):
+- `PADDLE_LIVE_API_KEY`
+- `PADDLE_LIVE_CLIENT_TOKEN`
+- `PADDLE_LIVE_WEBHOOK_SECRET`
 
-For GitHub Actions deployment, add the repository secret `CLOUDFLARE_API_TOKEN` with permission to deploy the Worker. The workflow does not contain credentials.
+Optional variables:
+- `PADDLE_ENV`: `sandbox` (default) or `production`.
+- `PADDLE_STANDARD_PRICE_ID`: explicit Paddle price ID for Standard.
+- `PADDLE_PREMIUM_PRICE_ID`: explicit Paddle price ID for Premium.
+- `MAX_PROXY_BYTES`: maximum proxied file size; defaults to 19,500,000 bytes.
+
+For production billing, set `PADDLE_ENV=production`, provide all three `PADDLE_LIVE_*` secrets, and provide both production price IDs. The Worker intentionally refuses to enable paid plans or create production checkouts when any required live credential or price ID is missing. Keep separate Paddle credentials and webhook secrets for staging and production.
+
+For GitHub Actions deployment, configure the repository secret `CLOUDFLARE_API_TOKEN` with only the permissions required by the deployment workflow.
+
+## Download and credit lifecycle
+
+1. An authenticated, email-verified user starts a batch.
+2. Klypza validates supported public video URLs and asks SaveAPI for available files.
+3. A download token is created in the `ready` state; no credit is consumed.
+4. When the user starts a file transfer, Klypza validates and reserves the allowance.
+5. The credit is recorded only after the response stream completes successfully.
+6. If the user cancels or the transfer fails, the pending reservation is cancelled and no credit is consumed.
+7. Each download token is single-use and bound to its authenticated user.
+
+The quota ledger is based on successful `usage_events`; account quota is calculated from the current UTC day. Keep credit transactions and usage events consistent when changing this lifecycle.
+
+## Billing lifecycle
+
+- Checkout is available only to authenticated, email-verified users.
+- Checkout orders begin as pending and are activated only after a valid Paddle webhook.
+- Webhook signatures are verified using the endpoint secret; event IDs are recorded to make delivery idempotent.
+- Paddle subscription state is the source of truth for paid entitlements.
+- Cancelled, paused, or expired subscriptions must not retain paid features from a stale user-plan field.
+- Past-due access is limited to the already-paid billing period.
+- Customer portal links are generated by Paddle, not constructed in the browser.
+
+## Safe development and release
+
+1. Back up the production D1 database and verify that the backup is stored outside the production database.
+2. Work on a dedicated branch; do not replace the production Worker with an older `main` version.
+3. Deploy candidate code only to `klypza-staging`, bound to `klypza-qa`.
+4. Run syntax, Wrangler dry-run, browser, auth, quota, download, billing and webhook tests.
+5. Use Paddle Sandbox for checkout and cancellation tests; never use a real payment during QA.
+6. Verify Free-plan ads and paid-plan ad suppression.
+7. Review the production diff and backup before deployment to `klypza-app`.
+
+No production deployment should be made solely because a dry-run passes. Live payment, email verification, streaming cancellation and entitlement changes require controlled end-to-end tests.
 
 ## Local development
 
-Requires Node.js 20+ and Wrangler:
+Requires Node.js 20+:
 
 ```sh
-npm install --save-dev wrangler
+npm install
 npx wrangler dev
+npm run test:e2e
 ```
 
-## Deployment
-
-```sh
-npx wrangler secret put SAVEAPI_KEY
-npx wrangler deploy
-```
-
-The GitHub Actions workflow deploys on pushes to `main` after `CLOUDFLARE_API_TOKEN` has been configured.
-
-## Search and legal pages
-
-The static site includes About, Contact, Privacy Policy, Terms of Use, Copyright Policy, robots.txt, and sitemap.xml. Canonical URLs currently target:
-
-`https://klypza-app.cokso344.workers.dev/`
-
-Revisit the canonical URL, sitemap, and Search Console verification if the production hostname changes.
+The Playwright suite supports `BASE_URL` for choosing the environment under test.
 
 ## Responsible use
 
-Only download videos you own or are authorized to save. Respect copyright, privacy, and each source platform's terms. Klypza is an independent service and is not affiliated with the named platforms.
+Only process videos you own or have permission to save. Respect copyright, privacy, platform terms and applicable laws. Klypza is independent and is not affiliated with the named platforms.
