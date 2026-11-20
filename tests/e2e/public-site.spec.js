@@ -89,7 +89,7 @@ test.describe('Klypza API smoke and access-control checks', () => {
   });
 
 
-  test('public plan API reports the configured limits and sandbox prices', async ({ request }) => {
+  test('public plan API reports the approved production prices and allowances', async ({ request }) => {
     const response = await request.get('/api/plans');
     expect(response.status()).toBe(200);
     const data = await response.json();
