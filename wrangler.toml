@@ -9,7 +9,7 @@ binding = "ASSETS"
 run_worker_first = ["/api/*"]
 
 [vars]
-PADDLE_ENV = "production"
+PADDLE_ENV = "sandbox"
 
 [observability]
 enabled = true
