@@ -60,8 +60,8 @@ test.describe('Klypza public website', () => {
     ]) {
       await expect(visiblePlanText(allowance)).toBeVisible();
     }
-    await expect(page.locator('.plan-price:visible').filter({ hasText: '$1.00' })).toBeVisible();
-    await expect(page.locator('.plan-price:visible').filter({ hasText: '$2.00' })).toBeVisible();
+    await expect(page.locator('.plan-price:visible').filter({ hasText: '$5.99' })).toBeVisible();
+    await expect(page.locator('.plan-price:visible').filter({ hasText: '$9.99' })).toBeVisible();
   });
 
   test('important public pages return successfully', async ({ request }) => {
@@ -100,8 +100,8 @@ test.describe('Klypza API smoke and access-control checks', () => {
     expect(data.testPricing).toBe(true);
     expect(data.plans).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: 'free', dailyLimit: 10, batchLimit: 5, ads: true }),
-      expect.objectContaining({ id: 'standard', dailyLimit: 60, batchLimit: 15, ads: false, price: 1 }),
-      expect.objectContaining({ id: 'premium', dailyLimit: 100, batchLimit: 25, ads: false, price: 2 }),
+      expect.objectContaining({ id: 'standard', dailyLimit: 60, batchLimit: 15, ads: false, price: 5.99 }),
+      expect.objectContaining({ id: 'premium', dailyLimit: 100, batchLimit: 25, ads: false, price: 9.99 }),
     ]));
   });
 
