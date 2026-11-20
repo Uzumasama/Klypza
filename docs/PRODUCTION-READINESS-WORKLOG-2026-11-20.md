@@ -59,7 +59,8 @@ All 84 pending/ready records were expired at inspection time. They were not dele
 - Production checkouts require explicit `PADDLE_STANDARD_PRICE_ID` and `PADDLE_PREMIUM_PRICE_ID`; the Worker refuses production checkout if they are missing.
 - Sandbox test prices remain $1/month and $2/month.
 - Production display prices are $4.99/month and $8.99/month.
-- Paid entitlement now follows the Paddle subscription state. Cancelled, paused or expired subscriptions no longer inherit a stale paid `users.plan`; past-due access is limited to a still-paid billing period.
+- Paid entitlement now follows the latest Paddle subscription state. Cancelled, paused or expired subscriptions no longer inherit a stale paid `users.plan`; past-due access is limited to a still-paid billing period.
+- Checkout rejects a second active, trialing, past-due or paused Paddle subscription for the same user, preventing accidental duplicate recurring charges.
 - Subscription webhook processing updates both subscription state and the user's plan.
 
 ### Tests and documentation
@@ -71,7 +72,7 @@ All 84 pending/ready records were expired at inspection time. They were not dele
 
 ## Validation status
 
-The code changes have been committed to the feature branch. The updated Worker was uploaded successfully to `klypza-staging` using the isolated `klypza-qa` D1 binding; Cloudflare accepted the latest restored-and-patched module and reported a 2 ms startup time. The staging secret bindings for SaveAPI and Resend were preserved. A reproducible `wrangler.staging.toml` and GitHub Actions staging deploy + Playwright workflow have been added. Browser test results have not yet been confirmed; the workflow needs to complete before staging can be considered validated.
+The code changes have been committed to the feature branch. The updated Worker was uploaded successfully to `klypza-staging` using the isolated `klypza-qa` D1 binding; Cloudflare accepted the latest restored-and-patched module and reported a 1 ms startup time on the latest upload. The staging secret bindings for SaveAPI and Resend were preserved. A reproducible `wrangler.staging.toml` and GitHub Actions staging deploy + Playwright workflow have been added. Browser test results have not yet been confirmed; the workflow needs to complete before staging can be considered validated.
 
 ## Remaining release gates
 
