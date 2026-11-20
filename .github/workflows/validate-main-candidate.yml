@@ -44,7 +44,7 @@ jobs:
           for (const pattern of required) {
             if (!pattern.test(source)) throw new Error('Missing required production feature: ' + pattern);
           }
-          if (source.includes('nap5k.com/tag.min.js')) throw new Error('Legacy floating Monetag script must remain disabled.');
+          if (source.includes('nap5k.com/tag.min.js') || source.includes('3nbf4.com') || source.includes('12250376')) throw new Error('Legacy floating Monetag script/service worker must remain disabled.');
           if (source.includes("Paddle.Environment.set('sandbox')")) throw new Error('Paddle.js must use the configured environment.');
           console.log('Production plan, Paddle gating, and existing download-confirmation flow checks passed.');
           NODE
