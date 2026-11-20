@@ -72,10 +72,22 @@ test.describe('Klypza API smoke and access-control checks', () => {
     const data = await response.json();
     expect(data.testPricing).toBe(true);
     expect(data.plans).toEqual(expect.arrayContaining([
-      expect.objectContaining({ id: 'free', dailyLimit: 10, batchLimit: 5, ads: true }),
+      expect.objectContaining({ id: 'free', dailyLimit: 5, batchLimit: 5, ads: true }),
       expect.objectContaining({ id: 'standard', dailyLimit: 60, batchLimit: 15, ads: false, price: 1 }),
       expect.objectContaining({ id: 'premium', dailyLimit: 100, batchLimit: 25, ads: false, price: 2 }),
     ]));
+  });
+
+  test('download cancellation requires an authenticated account', async ({ request }) => {
+    const response = await request.post('/api/download/cancel', { data: { id: '00000000-0000-4000-8000-000000000000' } });
+    expect(response.status()).toBe(401);
+  });
+
+  test('Paddle webhook never accepts an unsigned event', async ({ request }) => {
+    const response = await request.post('/api/paddle/webhook', { data: { event_id: 'e2e-unsigned', event_type: 'subscription.updated', data: {} } });
+    expect([401, 503]).toContain(response.status());
+    const data = await response.json();
+    expect(data.ok).not.toBe(true);
   });
 
   test('registration rejects invalid name, email, and password without creating accounts', async ({ request }) => {
