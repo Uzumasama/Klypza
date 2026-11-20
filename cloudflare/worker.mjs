@@ -449,7 +449,7 @@ async function createPaddlePortalLink(request,env){
  if(!pr.ok){console.error('PADDLE_PORTAL_SESSION_FAILED',pr.status,JSON.stringify(pd).slice(0,1000));return json({error:'portal_unavailable',message:pr.status===403?'Paddle API key needs Customer portal session (Write) permission.':'Paddle could not create the billing portal session.'},502);}
  const urls=pd?.data?.urls||{};const subscriptionLinks=(urls.subscriptions||[]).find(x=>x.id===sub.provider_subscription_id);const target=action==='cancel'?subscriptionLinks?.cancel_subscription:action==='payment_method'?subscriptionLinks?.update_subscription_payment_method:urls.general?.overview;
  if(!target)return json({error:'portal_link_missing',message:'Paddle did not return the requested portal link.'},502);
- return json({ok:true,url:target,action,environment:'sandbox'});
+ return json({ok:true,url:target,action,environment:paddleEnvironment(env)});
 }
 async function accountRouter(request, env, url) {
   const path = url.pathname;
