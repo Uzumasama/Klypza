@@ -414,7 +414,7 @@ async function handlePaddleWebhook(request,env){
  return json({ok:true,received:true});}
 async function createPaddleCheckout(request,env){
  if(request.method!=='POST')return json({error:'method_not_allowed'},405,{'allow':'POST'});
- if(!env.PADDLE_API_KEY)return json({error:'billing_not_configured',message:'Paddle billing is not configured.'},503);
+ if(!paddleBillingReady(env))return json({error:'billing_not_configured',message:'Paddle billing is not fully configured for this environment.'},503);
  const user=await getSessionUser(request,env);if(!user)return json({error:'login_required',message:'Please log in before choosing a paid plan.'},401);
  if(Number(user.email_verified)!==1)return json({error:'email_not_verified',message:'Verify your email address before purchasing a subscription.'},403);
  const body=await readJson(request);const plan=String(body?.plan||'').toLowerCase();
