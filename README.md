@@ -38,12 +38,19 @@ Never expose API keys, client secrets, webhook secrets, session tokens, or datab
 Required D1 binding:
 - `KLYPZA_DB`: the database for the target environment.
 
-Required secrets:
+Required secrets for all environments:
 - `SAVEAPI_KEY`
 - `RESEND_API_KEY`
+
+Paddle Sandbox secrets:
 - `PADDLE_API_KEY`
 - `PADDLE_CLIENT_TOKEN`
 - `PADDLE_WEBHOOK_SECRET`
+
+Separate Paddle production secrets (required only when `PADDLE_ENV=production`):
+- `PADDLE_LIVE_API_KEY`
+- `PADDLE_LIVE_CLIENT_TOKEN`
+- `PADDLE_LIVE_WEBHOOK_SECRET`
 
 Optional variables:
 - `PADDLE_ENV`: `sandbox` (default) or `production`.
@@ -51,7 +58,7 @@ Optional variables:
 - `PADDLE_PREMIUM_PRICE_ID`: explicit Paddle price ID for Premium.
 - `MAX_PROXY_BYTES`: maximum proxied file size; defaults to 19,500,000 bytes.
 
-For production billing, set `PADDLE_ENV=production` and provide both production price IDs. The Worker intentionally refuses to create production checkouts when either price ID is missing. Keep separate Paddle credentials and webhook secrets for staging and production.
+For production billing, set `PADDLE_ENV=production`, provide all three `PADDLE_LIVE_*` secrets, and provide both production price IDs. The Worker intentionally refuses to enable paid plans or create production checkouts when any required live credential or price ID is missing. Keep separate Paddle credentials and webhook secrets for staging and production.
 
 For GitHub Actions deployment, configure the repository secret `CLOUDFLARE_API_TOKEN` with only the permissions required by the deployment workflow.
 
