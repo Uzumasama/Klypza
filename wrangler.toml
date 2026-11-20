@@ -8,6 +8,9 @@ directory = "./public"
 binding = "ASSETS"
 run_worker_first = ["/api/*"]
 
+[vars]
+PADDLE_ENV = "production"
+
 [observability]
 enabled = true
 
