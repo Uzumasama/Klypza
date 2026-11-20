@@ -73,9 +73,12 @@ test.describe('Klypza API smoke and access-control checks', () => {
     expect(data.testPricing).toBe(true);
     expect(data.plans).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: 'free', dailyLimit: 5, batchLimit: 5, ads: true }),
-      expect.objectContaining({ id: 'standard', dailyLimit: 60, batchLimit: 15, ads: false, price: 1 }),
-      expect.objectContaining({ id: 'premium', dailyLimit: 100, batchLimit: 25, ads: false, price: 2 }),
+      expect.objectContaining({ id: 'standard', dailyLimit: 60, batchLimit: 15, ads: false, price: 1, available: expect.any(Boolean) }),
+      expect.objectContaining({ id: 'premium', dailyLimit: 100, batchLimit: 25, ads: false, price: 2, available: expect.any(Boolean) }),
     ]));
+    const billingConfig = await request.get('/api/billing/config');
+    const paidPlansAvailable = data.plans.filter(plan => plan.id !== 'free').every(plan => plan.available === true);
+    expect(billingConfig.status()).toBe(paidPlansAvailable ? 200 : 503);
   });
 
   test('download cancellation requires an authenticated account', async ({ request }) => {
