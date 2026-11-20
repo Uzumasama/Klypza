@@ -875,6 +875,27 @@ export default {
     if (url.pathname === '/reset-password' && request.method === 'GET') return resetPasswordPage(url);
     if (url.pathname === '/' || ['/login','/register','/dashboard','/plans'].includes(url.pathname)) {
       let pageHtml = appPageHtml(url.pathname);
+      if (url.pathname === '/dashboard') {
+        const adUser = await getSessionUser(request, env);
+        if (adUser) {
+          let adPlan = String(adUser.plan || 'free').toLowerCase();
+          const adSubscription = await env.KLYPZA_DB.prepare(
+            "SELECT plan,status,current_period_end,provider FROM subscriptions WHERE user_id=? ORDER BY updated_at DESC, created_at DESC LIMIT 1"
+          ).bind(adUser.id).first();
+          if (adSubscription && adSubscription.provider === 'paddle') {
+            const adStatus = String(adSubscription.status || '').toLowerCase();
+            const inPaidPeriod = adStatus === 'past_due' && adSubscription.current_period_end && Date.parse(adSubscription.current_period_end) > Date.now();
+            adPlan = (['active','trialing'].includes(adStatus) || inPaidPeriod)
+              ? String(adSubscription.plan || adPlan).toLowerCase()
+              : 'free';
+          }
+          if (adPlan === 'free') {
+            // Monetag zone 12312106: new In-Page Push/banner zone supplied by the site owner.
+            const monetagTag = '<script>(function(s){s.dataset.zone="12312106",s.src="https://nap5k.com/tag.min.js"})([document.documentElement,document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>';
+            pageHtml = pageHtml.replace('<head>', '<head>\\n' + monetagTag);
+          }
+        }
+      }
       return new Response(pageHtml,{headers:securityHeaders({'content-type':'text/html; charset=utf-8','cache-control':'no-cache'})});
     }
     if (url.pathname === '/brand-icon.webp' || url.pathname === '/brand-wordmark.webp' || url.pathname === '/footer-wordmark-white.webp') {
