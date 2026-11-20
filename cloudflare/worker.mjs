@@ -300,6 +300,7 @@ html = html.replace('</body>', tabController + profileDataController + passwordT
     });
   }
   function sync() {
+    disablePaidButtons();
     fetch('/api/plans', { cache: 'no-store' })
       .then(function (response) { if (!response.ok) throw new Error('Plan availability unavailable'); return response.json(); })
       .then(function (data) {
