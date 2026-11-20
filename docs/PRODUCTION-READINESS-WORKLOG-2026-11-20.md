@@ -15,7 +15,7 @@ No production Worker deployment, production D1 write, user deletion, payment act
 
 - Production Worker has D1, assets, SaveAPI, Resend and Paddle secret bindings.
 - Staging Worker has its own D1 database and has SaveAPI and Resend secrets.
-- Staging Worker does not yet have Paddle API key, Paddle client token, or Paddle webhook secret bindings.
+- Staging Worker retains its SaveAPI and Resend secret bindings. It does not yet have Paddle API key, Paddle client token, or Paddle webhook secret bindings.
 - The staging D1 database contains the expected application tables.
 - The Cloudflare account has not enabled R2. A D1 export operation completed, but a durable independently retained backup still needs to be created and verified before production deployment.
 
@@ -70,13 +70,13 @@ All 84 pending/ready records were expired at inspection time. They were not dele
 
 ## Validation status
 
-The code changes have been committed to the feature branch. Post-change CI and browser test results are not yet confirmed in this work log. A successful syntax check and Wrangler dry-run are still required before the branch can be considered staging-deployable.
+The code changes have been committed to the feature branch. The updated Worker was uploaded successfully to `klypza-staging` using the isolated `klypza-qa` D1 binding; Cloudflare accepted the module and reported a 1 ms startup time. The staging secret bindings for SaveAPI and Resend were preserved. A reproducible `wrangler.staging.toml` and GitHub Actions staging deploy + Playwright workflow have been added. Browser test results have not yet been confirmed; the workflow needs to complete before staging can be considered validated.
 
 ## Remaining release gates
 
 1. Retain a durable private production D1 backup outside the database and verify its size and integrity.
 2. Add Paddle Sandbox secrets to the staging Worker using the Paddle dashboard; secret values cannot be read back from Cloudflare and must not be copied from production by attempting to retrieve them.
-3. Add an isolated staging deployment workflow/configuration bound only to `klypza-qa`.
+3. Configure the missing Paddle Sandbox secrets on `klypza-staging`; then run the isolated staging deployment and Playwright workflow.
 4. Run browser tests against staging for registration, email verification, login/logout, profile, reset password, plan display, batch limits, cancellation, successful download, quota accounting, and ZIP batches.
 5. Run Paddle Sandbox checkout, webhook, subscription activation, portal, cancellation, renewal and duplicate-event tests using a controlled verified test account.
 6. Confirm Free accounts see Monetag ads and Standard/Premium accounts do not.
