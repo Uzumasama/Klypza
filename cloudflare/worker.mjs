@@ -894,7 +894,7 @@ export default {
           }
           if (adPlan === 'free') {
             const monetagTag = '<script data-cfasync="false" data-zone="12250392" src="https://nap5k.com/tag.min.js" async></script>';
-            pageHtml = pageHtml.replace('<head>', '<head>\\n' + monetagTag);
+            pageHtml = pageHtml.replace('<head>', '<head>\n' + monetagTag);
           }
         }
       }
