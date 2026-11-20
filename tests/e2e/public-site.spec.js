@@ -89,11 +89,11 @@ test.describe('Klypza API smoke and access-control checks', () => {
   });
 
 
-  test('public plan API reports the approved production prices and allowances', async ({ request }) => {
+  test('public plan API reports the approved Sandbox prices and allowances', async ({ request }) => {
     const response = await request.get('/api/plans');
     expect(response.status()).toBe(200);
     const data = await response.json();
-    expect(data.testPricing).toBe(false);
+    expect(data.testPricing).toBe(true);
     expect(data.plans).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: 'free', dailyLimit: 10, batchLimit: 5, ads: true }),
       expect.objectContaining({ id: 'standard', dailyLimit: 60, batchLimit: 15, ads: false, price: 5.99 }),
@@ -101,12 +101,12 @@ test.describe('Klypza API smoke and access-control checks', () => {
     ]));
   });
 
-  test('production Paddle availability is gated by complete live configuration', async ({ request, page }) => {
+  test('Sandbox Paddle availability is gated by complete test configuration', async ({ request, page }) => {
     const config = await request.get('/api/billing/config');
     const plansResponse = await request.get('/api/plans');
     expect(plansResponse.status()).toBe(200);
     const data = await plansResponse.json();
-    expect(data.testPricing).toBe(false);
+    expect(data.testPricing).toBe(true);
     const standard = data.plans.find(plan => plan.id === 'standard');
     const premium = data.plans.find(plan => plan.id === 'premium');
     expect(standard.price).toBe(5.99);
@@ -124,7 +124,7 @@ test.describe('Klypza API smoke and access-control checks', () => {
     } else {
       expect(config.status()).toBe(200);
       const billing = await config.json();
-      expect(billing.environment).toBe('production');
+      expect(billing.environment).toBe('sandbox');
       expect(billing.clientToken).toBeTruthy();
       expect(standard.available).toBe(true);
       expect(premium.available).toBe(true);
