@@ -275,15 +275,38 @@ function appPageHtml(path) {
 </script>`;
 const monetagFreeOnlyController = `<script>
 (function () {
-  function hideLegacyAdSlots() {
+  function hideAdPlaceholders() {
     document.querySelectorAll('#dashboardCard .ad-slot').forEach(function (slot) {
       slot.hidden = true;
       slot.style.display = 'none';
+      slot.setAttribute('aria-hidden', 'true');
     });
   }
-  // The old Monetag zone rendered a floating notification instead of the agreed
-  // banner/native format. Keep it disabled until a compliant banner/native zone is configured.
-  hideLegacyAdSlots();
+  function loadFreePlanBanner() {
+    if (document.querySelector('script[data-klypza-monetag="12250392"]')) return;
+    var script = document.createElement('script');
+    script.dataset.klypzaMonetag = '12250392';
+    script.dataset.zone = '12250392';
+    script.src = 'https://nap5k.com/tag.min.js';
+    script.async = true;
+    (document.head || document.documentElement).appendChild(script);
+  }
+  function applyAdPolicy(data) {
+    hideAdPlaceholders();
+    if (!data || !data.user) return;
+    var subscription = data.subscription && String(data.subscription.status || '').toLowerCase() === 'active'
+      ? data.subscription : null;
+    var plan = String((subscription && subscription.plan) || data.plan || data.user.plan || 'free').toLowerCase();
+    if (plan === 'free') loadFreePlanBanner();
+  }
+  function init() {
+    fetch('/api/account', { credentials: 'same-origin', cache: 'no-store' })
+      .then(function (response) { if (!response.ok) return null; return response.json(); })
+      .then(applyAdPolicy)
+      .catch(function () { hideAdPlaceholders(); });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
 })();
 </script>`;
 const planStateController = "<script>\n(function () {\n function applyPlanState(data) {\n  if (!data || !data.user) return;\n  var sub=data.subscription&&String(data.subscription.status||'').toLowerCase()==='active'?data.subscription:null;\n  var plan=String((sub&&sub.plan)||data.plan||data.user.plan||'free').toLowerCase();\n  if (!['free','standard','premium'].includes(plan)) plan='free';\n  document.querySelectorAll('#dashboardCard #plansPanel .membership-pricing-grid .pricing-card').forEach(function(card){\n   var h=card.querySelector('h3'), name=String(h&&h.textContent||'').trim().toLowerCase();\n   if(!['free','standard','premium'].includes(name))return;\n   var current=name===plan; card.classList.toggle('current-plan-card',current); card.setAttribute('data-plan-state',current?'current':'available');\n   var badge=card.querySelector('.badge'); if(badge){badge.textContent=current?'Current plan':(name==='free'?'Free plan':'Monthly plan');badge.classList.toggle('current-plan-badge',current);}\n   var action=card.querySelector('a.btn-download,button[data-paddle-plan]'); if(!action)return;\n   if(current){action.textContent='Current Plan';action.classList.add('plan-current-button');action.setAttribute('aria-current','true');action.setAttribute('aria-disabled','true');action.setAttribute('tabindex','-1');action.removeAttribute('href');action.removeAttribute('data-paddle-plan');action.disabled=true;}\n   else {action.classList.remove('plan-current-button');action.removeAttribute('aria-current');action.removeAttribute('aria-disabled');action.removeAttribute('tabindex');action.disabled=false;if(name==='free'){action.textContent='Included with account';action.disabled=true;action.setAttribute('aria-disabled','true');}else{action.textContent=name==='standard'?'Choose Standard':'Choose Premium';action.setAttribute('data-paddle-plan',name);}}\n  });\n  var status=document.getElementById('membershipStatus'),notice=document.getElementById('membershipNotice'),end=document.getElementById('membershipEnd');\n  var cancel=!!(sub&&String(sub.scheduled_change_action||'').toLowerCase()==='cancel');\n  if(status)status.textContent=cancel?'Cancellation scheduled':sub?'Active':'No paid subscription';\n  if(end){var date=cancel?sub.scheduled_change_effective_at:(sub&&sub.current_period_end);end.textContent=date?new Date(date).toLocaleDateString():'Not applicable';var label=end.parentElement&&end.parentElement.querySelector('span');if(label)label.textContent=cancel?'Access ends':'Next renewal';}\n  if(notice){if(cancel)notice.textContent='Your subscription cancellation is scheduled. Your paid access remains active until the date shown above.';else if(sub)notice.textContent='Your '+plan.charAt(0).toUpperCase()+plan.slice(1)+' subscription is active. Your current plan is marked below; you can review another plan if you want to change your membership.';else notice.textContent='You are currently using the Free plan. Choose Standard or Premium if you need higher daily limits and larger batches.';}\n }\n function load(){fetch('/api/account',{cache:'no-store',credentials:'same-origin'}).then(function(r){if(!r.ok)throw new Error('Account status unavailable');return r.json();}).then(applyPlanState).catch(function(e){console.warn('KLYPZA_PLAN_STATE',e);});}\n if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',load);else load();\n})();\n</script>";
