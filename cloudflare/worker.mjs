@@ -875,9 +875,9 @@ export default {
     if (url.pathname === '/reset-password' && request.method === 'GET') return resetPasswordPage(url);
     if (url.pathname === '/' || ['/login','/register','/dashboard','/plans'].includes(url.pathname)) {
       let pageHtml = appPageHtml(url.pathname);
-      // Serve Monetag's zone tag in the document head only for authenticated Free accounts.
-      // Monetag's installation guidance requires the tag near the opening <head>; client-side
-      // insertion after an API request can be missed by its installation checker and delay delivery.
+      // Monetag zone 12250392 previously produced floating/pop-style placements.
+      // Keep the site-side ad slots restricted to Free accounts, but do not load this
+      // unverified zone until a dedicated banner/native placement ID is configured.
       if (url.pathname === '/dashboard') {
         const adUser = await getSessionUser(request, env);
         if (adUser) {
@@ -892,10 +892,8 @@ export default {
               ? String(adSubscription.plan || adPlan).toLowerCase()
               : 'free';
           }
-          if (adPlan === 'free') {
-            const monetagTag = '<script data-cfasync="false" data-zone="12250392" src="https://nap5k.com/tag.min.js" async></script>';
-            pageHtml = pageHtml.replace('<head>', '<head>\n' + monetagTag);
-          }
+          // Ad slots are visible for Free accounts; no unverified pop/floating script is loaded.
+          pageHtml = pageHtml.replace('</body>', '<script>document.documentElement.dataset.klypzaAdPlan=' + JSON.stringify(adPlan) + ';</script></body>');
         }
       }
       return new Response(pageHtml,{headers:securityHeaders({'content-type':'text/html; charset=utf-8','cache-control':'no-cache'})});
