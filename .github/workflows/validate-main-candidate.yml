@@ -1,0 +1,50 @@
+name: Validate Klypza production candidate
+
+on:
+  push:
+    branches:
+      - production/klypza-main-reconciliation
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out candidate
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.12.0
+      - name: Validate Worker JavaScript syntax
+        run: node --check cloudflare/worker.mjs
+      - name: Validate production plan and payment safeguards
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const source = fs.readFileSync('cloudflare/worker.mjs', 'utf8');
+          const required = [
+            /free:\s*\{\s*daily:\s*10,\s*batch:\s*5,\s*price:\s*0/,
+            /standard:\s*\{\s*daily:\s*60,\s*batch:\s*15,\s*price:\s*5\.99/,
+            /premium:\s*\{\s*daily:\s*100,\s*batch:\s*25,\s*price:\s*9\.99/,
+            /PADDLE_LIVE_API_KEY/,
+            /PADDLE_LIVE_CLIENT_TOKEN/,
+            /PADDLE_LIVE_WEBHOOK_SECRET/,
+            /PADDLE_STANDARD_PRICE_ID/,
+            /PADDLE_PREMIUM_PRICE_ID/,
+            /handleDownloadComplete/,
+            /createPendingDownload/
+          ];
+          for (const pattern of required) {
+            if (!pattern.test(source)) throw new Error('Missing required production feature: ' + pattern);
+          }
+          if (source.includes('nap5k.com/tag.min.js')) throw new Error('Legacy floating Monetag script must remain disabled.');
+          if (source.includes("Paddle.Environment.set('sandbox')")) throw new Error('Paddle.js must use the configured environment.');
+          console.log('Production plan, Paddle gating, and existing download-confirmation flow checks passed.');
+          NODE
+      - name: Validate Wrangler production build without deploying
+        run: npx --yes wrangler@4.162.0 deploy --dry-run --outdir /tmp/klypza-production-candidate
