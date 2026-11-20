@@ -16,7 +16,7 @@ No production Worker deployment, production D1 write, user deletion, payment act
 - Production Worker has D1, assets, SaveAPI, Resend and Paddle secret bindings.
 - Staging Worker has its own D1 database and has SaveAPI and Resend secrets.
 - Staging Worker retains its SaveAPI and Resend secret bindings. It does not yet have Paddle API key, Paddle client token, or Paddle webhook secret bindings.
-- The staging D1 database contains the expected application tables.
+- The staging D1 database contains the expected application tables. At the latest read-only check it contained 1 existing QA user, 0 payment orders and 0 usage events; this QA user was preserved.
 - The Cloudflare account has not enabled R2. A D1 export operation completed, but a durable independently retained backup still needs to be created and verified before production deployment.
 
 ## Production database
@@ -64,13 +64,14 @@ All 84 pending/ready records were expired at inspection time. They were not dele
 
 ### Tests and documentation
 - Public plan E2E expectation updated to Free 5/day.
+- Public and dashboard pricing cards now load prices and paid-plan availability from `/api/plans`; paid checkout buttons remain disabled until Paddle is fully configured.
 - Added unauthenticated download-cancellation protection test.
 - Added unsigned Paddle webhook rejection test.
 - Added release, billing and credit lifecycle documentation.
 
 ## Validation status
 
-The code changes have been committed to the feature branch. The updated Worker was uploaded successfully to `klypza-staging` using the isolated `klypza-qa` D1 binding; Cloudflare accepted the module and reported a 1 ms startup time. The staging secret bindings for SaveAPI and Resend were preserved. A reproducible `wrangler.staging.toml` and GitHub Actions staging deploy + Playwright workflow have been added. Browser test results have not yet been confirmed; the workflow needs to complete before staging can be considered validated.
+The code changes have been committed to the feature branch. The updated Worker was uploaded successfully to `klypza-staging` using the isolated `klypza-qa` D1 binding; Cloudflare accepted the latest restored-and-patched module and reported a 2 ms startup time. The staging secret bindings for SaveAPI and Resend were preserved. A reproducible `wrangler.staging.toml` and GitHub Actions staging deploy + Playwright workflow have been added. Browser test results have not yet been confirmed; the workflow needs to complete before staging can be considered validated.
 
 ## Remaining release gates
 
