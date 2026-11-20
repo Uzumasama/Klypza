@@ -1239,9 +1239,11 @@ async function handleFile(url, env, request) {
     if(finalized)return true;
     finalized=true;
     if(completed){
-      const charged=await consumePendingDownload(user,env,downloadId);
-      if(charged)return true;
-      await env.KLYPZA_DB.prepare("UPDATE pending_downloads SET status='cancelled' WHERE id=? AND user_id=? AND status='pending'").bind(downloadId,user.id).run();
+      try{
+        const charged=await consumePendingDownload(user,env,downloadId);
+        if(charged)return true;
+      }catch(error){console.error('KLYPZA_DOWNLOAD_CREDIT_COMMIT',String(error));}
+      try{await env.KLYPZA_DB.prepare("UPDATE pending_downloads SET status='cancelled' WHERE id=? AND user_id=? AND status='pending'").bind(downloadId,user.id).run();}catch(error){console.error('KLYPZA_DOWNLOAD_RESERVATION_RELEASE',String(error));}
       return false;
     }
     await env.KLYPZA_DB.prepare("UPDATE pending_downloads SET status='cancelled' WHERE id=? AND user_id=? AND status='pending'").bind(downloadId,user.id).run();
