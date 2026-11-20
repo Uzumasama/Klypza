@@ -57,6 +57,23 @@ jobs:
           else
             echo "SAVEAPI_KEY is not configured in staging; video processing remains disabled."
           fi
+      - name: Apply optional Paddle Sandbox secrets to staging Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_STAGING_API_TOKEN }}
+          PADDLE_API_KEY: ${{ secrets.PADDLE_API_KEY }}
+          PADDLE_CLIENT_TOKEN: ${{ secrets.PADDLE_CLIENT_TOKEN }}
+          PADDLE_WEBHOOK_SECRET: ${{ secrets.PADDLE_WEBHOOK_SECRET }}
+          PADDLE_STANDARD_PRICE_ID: ${{ secrets.PADDLE_STANDARD_PRICE_ID }}
+          PADDLE_PREMIUM_PRICE_ID: ${{ secrets.PADDLE_PREMIUM_PRICE_ID }}
+        run: |
+          if [ -n "$PADDLE_API_KEY" ] && [ -n "$PADDLE_CLIENT_TOKEN" ] && [ -n "$PADDLE_WEBHOOK_SECRET" ] && [ -n "$PADDLE_STANDARD_PRICE_ID" ] && [ -n "$PADDLE_PREMIUM_PRICE_ID" ]; then
+            for name in PADDLE_API_KEY PADDLE_CLIENT_TOKEN PADDLE_WEBHOOK_SECRET PADDLE_STANDARD_PRICE_ID PADDLE_PREMIUM_PRICE_ID; do
+              printf '%s' "${!name}" | npx --yes wrangler@4.162.0 secret put "$name" --config wrangler.staging.toml
+            done
+            echo "Paddle Sandbox configuration applied to staging Worker; values are hidden."
+          else
+            echo "Paddle Sandbox secrets are incomplete; paid plans remain unavailable in staging."
+          fi
       - name: Validate Worker JavaScript syntax
         run: node --check cloudflare/worker.mjs
       - name: Deploy isolated staging Worker
