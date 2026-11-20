@@ -22,6 +22,8 @@ jobs:
           node-version: 22.12.0
       - name: Validate Worker JavaScript syntax
         run: node --check cloudflare/worker.mjs
+      - name: Validate browser test syntax
+        run: node --check tests/e2e/public-site.spec.js
       - name: Validate production plan and payment safeguards
         run: |
           node --input-type=module <<'NODE'
