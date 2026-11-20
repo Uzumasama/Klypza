@@ -875,27 +875,6 @@ export default {
     if (url.pathname === '/reset-password' && request.method === 'GET') return resetPasswordPage(url);
     if (url.pathname === '/' || ['/login','/register','/dashboard','/plans'].includes(url.pathname)) {
       let pageHtml = appPageHtml(url.pathname);
-      // Monetag zone 12250392 previously produced floating/pop-style placements.
-      // Keep the site-side ad slots restricted to Free accounts, but do not load this
-      // unverified zone until a dedicated banner/native placement ID is configured.
-      if (url.pathname === '/dashboard') {
-        const adUser = await getSessionUser(request, env);
-        if (adUser) {
-          let adPlan = String(adUser.plan || 'free').toLowerCase();
-          const adSubscription = await env.KLYPZA_DB.prepare(
-            "SELECT plan,status,current_period_end,provider FROM subscriptions WHERE user_id=? ORDER BY updated_at DESC, created_at DESC LIMIT 1"
-          ).bind(adUser.id).first();
-          if (adSubscription && adSubscription.provider === 'paddle') {
-            const adStatus = String(adSubscription.status || '').toLowerCase();
-            const inPaidPeriod = adStatus === 'past_due' && adSubscription.current_period_end && Date.parse(adSubscription.current_period_end) > Date.now();
-            adPlan = (['active','trialing'].includes(adStatus) || inPaidPeriod)
-              ? String(adSubscription.plan || adPlan).toLowerCase()
-              : 'free';
-          }
-          // Ad slots are visible for Free accounts; no unverified pop/floating script is loaded.
-          pageHtml = pageHtml.replace('</body>', '<script>document.documentElement.dataset.klypzaAdPlan=' + JSON.stringify(adPlan) + ';</script></body>');
-        }
-      }
       return new Response(pageHtml,{headers:securityHeaders({'content-type':'text/html; charset=utf-8','cache-control':'no-cache'})});
     }
     if (url.pathname === '/brand-icon.webp' || url.pathname === '/brand-wordmark.webp' || url.pathname === '/footer-wordmark-white.webp') {
