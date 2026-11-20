@@ -315,6 +315,7 @@ function planLimits(plan){ return PLAN_LIMITS[String(plan||'free').toLowerCase()
 function utcDate(){ return new Date().toISOString().slice(0,10); }
 function paddleEnvironment(env){ return String(env.PADDLE_ENV||'sandbox').toLowerCase()==='production'?'production':'sandbox'; }
 function paddleApiBase(env){ return paddleEnvironment(env)==='production'?'https://api.paddle.com':'https://sandbox-api.paddle.com'; }
+function paddleBillingReady(env){ const sandbox=paddleEnvironment(env)==='sandbox'; return Boolean(env.PADDLE_API_KEY&&env.PADDLE_CLIENT_TOKEN&&env.PADDLE_WEBHOOK_SECRET&&(sandbox||(env.PADDLE_STANDARD_PRICE_ID&&env.PADDLE_PREMIUM_PRICE_ID))); }
 
 const INFO_PAGES = {
   about: {
@@ -468,13 +469,13 @@ async function accountRouter(request, env, url) {
   if (path === '/api/account/profile' && request.method === 'POST') return updateAccountProfile(request,env);
   if (path === '/api/account/password' && request.method === 'POST') return changeAccountPassword(request,env);
   if (path === '/api/batch/start' && request.method === 'POST') return startDownloadBatch(request,env);
-  if (path === '/api/billing/config' && request.method === 'GET') return env.PADDLE_CLIENT_TOKEN ? json({clientToken:env.PADDLE_CLIENT_TOKEN,environment:paddleEnvironment(env)}) : json({error:'billing_not_configured'},503);
+  if (path === '/api/billing/config' && request.method === 'GET') return paddleBillingReady(env) ? json({clientToken:env.PADDLE_CLIENT_TOKEN,environment:paddleEnvironment(env)}) : json({error:'billing_not_configured'},503);
   if (path === '/api/billing/checkout' && request.method === 'POST') return createPaddleCheckout(request,env);
   if (path === '/api/billing/portal' && request.method === 'POST') return createPaddlePortalLink(request,env);
-  if (path === '/api/plans' && request.method === 'GET') { const sandbox=paddleEnvironment(env)==='sandbox'; return json({currency:'USD',billingPeriod:'month',testPricing:sandbox,plans:[
+  if (path === '/api/plans' && request.method === 'GET') { const sandbox=paddleEnvironment(env)==='sandbox',billingReady=paddleBillingReady(env); return json({currency:'USD',billingPeriod:'month',testPricing:sandbox,plans:[
     {id:'free',name:'Free',price:0,dailyLimit:5,batchLimit:5,zip:true,quality:'Basic',queue:'Standard',ads:true,available:true},
-    {id:'standard',name:'Standard',price:sandbox?1:4.99,dailyLimit:60,batchLimit:15,zip:true,quality:'Expanded',queue:'Faster',ads:false,available:true},
-    {id:'premium',name:'Premium',price:sandbox?2:8.99,dailyLimit:100,batchLimit:25,zip:true,quality:'Expanded',queue:'Priority',ads:false,available:true}
+    {id:'standard',name:'Standard',price:sandbox?1:4.99,dailyLimit:60,batchLimit:15,zip:true,quality:'Expanded',queue:'Faster',ads:false,available:billingReady},
+    {id:'premium',name:'Premium',price:sandbox?2:8.99,dailyLimit:100,batchLimit:25,zip:true,quality:'Expanded',queue:'Priority',ads:false,available:billingReady}
   ]}); }
   return null;
 }
