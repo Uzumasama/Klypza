@@ -1340,9 +1340,9 @@ async function handleYouTubeInfo(parsed, env, user, batchId) {
   if (!completionId) return await quotaLimitResponse(user,env,batchId);
 
   for (const { format, quality } of eligibleFormats) {
-    const name = \`YouTube_\${slug(title) || 'video'}_\${quality}.mp4\`;
-    const sig = await hmac(secret, \`\${parsed.href}\\n\${name}\\n\${expires}\\n\${quality}\\n\${completionId}\`);
-    const file = \`/api/file?u=\${encodeURIComponent(parsed.href)}&q=\${encodeURIComponent(quality)}&n=\${encodeURIComponent(name)}&e=\${expires}&d=\${completionId}&s=\${sig}\`;
+    const name = `YouTube_${slug(title) || 'video'}_${quality}.mp4`;
+    const sig = await hmac(secret, `${parsed.href}\\n${name}\\n${expires}\\n${quality}\\n${completionId}`);
+    const file = `/api/file?u=${encodeURIComponent(parsed.href)}&q=${encodeURIComponent(quality)}&n=${encodeURIComponent(name)}&e=${expires}&d=${completionId}&s=${sig}`;
     items.push({type:'video',quality,watermark:false,ext:'mp4',name,thumb:/^https?:\\/\\//i.test(thumb)?thumb:'',size_mb:typeof format.size_mb==='number'?format.size_mb:null,file,completionId});
   }
   if (!items.length) return json({ error: 'no_video', message: 'No supported YouTube video qualities were found.' }, 422);
