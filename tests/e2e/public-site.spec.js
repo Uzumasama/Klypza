@@ -112,6 +112,35 @@ test.describe('Klypza public website', () => {
     await expect(page.locator('#dashboardCard')).toBeHidden();
   });
 
+
+  test('dashboard layout uses a full-width header and readable tablet columns', async ({ page }) => {
+    for (const viewport of [{ width: 959, height: 1600 }, { width: 768, height: 1024 }, { width: 390, height: 844 }]) {
+      await page.setViewportSize(viewport);
+      await page.goto('/dashboard');
+      const layout = await page.locator('#dashboardCard').evaluate(card => {
+        const welcome = card.querySelector(':scope > .dashboard-welcome');
+        const menu = card.querySelector(':scope > .dashboard-side-menu');
+        const overview = card.querySelector(':scope > #overviewPanel');
+        const rect = element => {
+          const r = element.getBoundingClientRect();
+          return { left: r.left, right: r.right, width: r.width };
+        };
+        return {
+          columns: getComputedStyle(card).gridTemplateColumns,
+          display: getComputedStyle(card).display,
+          card: rect(card),
+          welcome: rect(welcome),
+          welcomeGridColumn: getComputedStyle(welcome).gridColumn,
+          menuGridColumn: getComputedStyle(menu).gridColumn,
+          overviewGridColumn: getComputedStyle(overview).gridColumn,
+        };
+      });
+      expect(layout.display, JSON.stringify({ viewport, layout })).toBe('grid');
+      expect(layout.columns.trim().split(/\\s+/), JSON.stringify({ viewport, layout })).toHaveLength(1);
+      expect(layout.welcome.width, JSON.stringify({ viewport, layout })).toBeGreaterThan(layout.card.width - 4);
+    }
+  });
+
   test('plans page shows only Weekly, Standard and Premium allowances', async ({ page }) => {
     await page.goto('/plans');
     const cards = page.locator('#plansCard .pricing-card:visible');
