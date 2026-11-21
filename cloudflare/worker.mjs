@@ -1336,6 +1336,7 @@ function saveApiError(data, upstreamStatus, retryAfter = null) {
 async function handleFile(url, env, request) {
   if (!env.SAVEAPI_KEY) return json({ error: 'not_configured' }, 503);
   let user=await getSessionUser(request,env);if(!user)return json({error:'login_required'},401);
+  if(Number(user.email_verified)!==1)return json({error:'email_not_verified',message:'Verify your email address before downloading.'},403);
   const access=await getAccountAccess(user,env);if(!access.canDownload)return json({error:'trial_expired',message:'Your 7-day free trial has ended. Choose a paid Klypza plan to continue downloading.'},402);user={...user,plan:access.plan};
   const downloadId=url.searchParams.get('d')||'';if(!/^[0-9a-f-]{36}$/i.test(downloadId))return json({error:'invalid_download'},400);
   let pending=await env.KLYPZA_DB.prepare("SELECT status,expires_at,batch_id FROM pending_downloads WHERE id=? AND user_id=?").bind(downloadId,user.id).first();if(!pending||!['ready','pending'].includes(pending.status)||Number(pending.expires_at)<=Date.now())return json({error:'download_token_used_or_expired',message:'This download link has expired or has already been used. Process the link again.'},410);
