@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveAccountAccess } from '../../cloudflare/worker.mjs';
+import { resolveAccountAccess, planLimits } from '../../cloudflare/worker.mjs';
 
 const NOW = Date.parse('2026-11-21T08:00:00Z');
 const future = new Date(NOW + 3 * 86400000).toISOString();
@@ -9,8 +9,9 @@ const past = new Date(NOW - 1000).toISOString();
 test('active 7-day trial grants Weekly access and reports remaining days', () => {
   const trial = { plan: 'weekly', status: 'trialing', current_period_start: new Date(NOW - 86400000).toISOString(), current_period_end: future };
   const access = resolveAccountAccess(null, trial, NOW);
-  assert.equal(access.plan, 'weekly');
+  assert.equal(access.plan, 'trial');
   assert.equal(access.canDownload, true);
+  assert.deepEqual({daily:planLimits(access.plan).daily,batch:planLimits(access.plan).batch},{daily:10,batch:5});
   assert.equal(access.trial.status, 'active');
   assert.equal(access.trial.daysRemaining, 3);
 });
@@ -59,4 +60,12 @@ test('valid paid subscription takes precedence over expired trial', () => {
   assert.equal(access.canDownload, true);
   assert.equal(access.plan, 'weekly');
   assert.equal(access.trial, null);
+});
+
+
+test('approved plan limits remain distinct across Trial and paid tiers', () => {
+  assert.deepEqual({daily:planLimits('trial').daily,batch:planLimits('trial').batch},{daily:10,batch:5});
+  assert.deepEqual({daily:planLimits('weekly').daily,batch:planLimits('weekly').batch},{daily:25,batch:5});
+  assert.deepEqual({daily:planLimits('standard').daily,batch:planLimits('standard').batch},{daily:60,batch:15});
+  assert.deepEqual({daily:planLimits('premium').daily,batch:planLimits('premium').batch},{daily:100,batch:25});
 });
