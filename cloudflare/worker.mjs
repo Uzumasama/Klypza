@@ -349,7 +349,7 @@ export function selectEligiblePaidSubscription(rows,now=Date.now()){
     return bEnd-aEnd;
   })[0]||null;
 }
-function resolveAccountAccess(paid,trial,now=Date.now()){
+export function resolveAccountAccess(paid,trial,now=Date.now()){
   const paidStatus=String(paid?.status||'').toLowerCase(),paidEnd=paid?.current_period_end?Date.parse(paid.current_period_end):0;
   if(['active','trialing'].includes(paidStatus)||(paidStatus==='past_due'&&paidEnd>now))return {plan:String(paid.plan||'free').toLowerCase(),subscription:paid,trial:null,trialExpired:false,canDownload:true};
   if(trial){
