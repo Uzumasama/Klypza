@@ -1003,16 +1003,25 @@ async function consumePendingDownload(user,env,id){
 }
 
 async function handleDownloadComplete(request,env){
- const user=await getSessionUser(request,env);if(!user)return json({error:'login_required'},401);let body;try{body=await request.json()}catch{return json({error:'bad_request'},400)}const id=String(body?.id||'');if(!/^[0-9a-f-]{36}$/i.test(id))return json({error:'invalid_download'},400);
- const p=await env.KLYPZA_DB.prepare('SELECT * FROM pending_downloads WHERE id=? AND user_id=?').bind(id,user.id).first();if(!p)return json({error:'invalid_download'},404);if(p.status==='completed')return json({ok:true,alreadyCompleted:true});const limits=planLimits(user.plan),day=utcDate(),now=Date.now();
- const batch=await env.KLYPZA_DB.batch([
- env.KLYPZA_DB.prepare("INSERT INTO usage_events(id,user_id,batch_id,usage_date,platform,source_url,title) SELECT id,user_id,batch_id,?,platform,source_url,title FROM pending_downloads WHERE id=? AND user_id=? AND status='pending' AND expires_at>? AND (SELECT COUNT(*) FROM usage_events WHERE user_id=? AND usage_date=?) < ? AND (SELECT COUNT(*) FROM usage_events WHERE user_id=? AND batch_id=?) < (SELECT max_videos FROM download_batches WHERE id=? AND user_id=?)").bind(day,id,user.id,now,user.id,day,limits.daily,user.id,p.batch_id,p.batch_id,user.id),
- env.KLYPZA_DB.prepare("UPDATE pending_downloads SET status='completed',completed_at=CURRENT_TIMESTAMP WHERE id=? AND user_id=? AND status='pending' AND EXISTS(SELECT 1 FROM usage_events WHERE id=? AND user_id=?)").bind(id,user.id,id,user.id),
- env.KLYPZA_DB.prepare("INSERT INTO credit_transactions(id,user_id,amount,balance_after,reason,reference_id) SELECT ?,?,-1,MAX(0,?-(SELECT COUNT(*) FROM usage_events WHERE user_id=? AND usage_date=?)),'video_download',? WHERE EXISTS(SELECT 1 FROM usage_events WHERE id=? AND user_id=?) AND NOT EXISTS(SELECT 1 FROM credit_transactions WHERE reference_id=?)").bind(crypto.randomUUID(),user.id,limits.daily,user.id,day,id,id,user.id,id),
- env.KLYPZA_DB.prepare("INSERT OR IGNORE INTO downloads(id,user_id,platform,source_url,title,credits_used,status) SELECT id,user_id,platform,source_url,title,1,'completed' FROM pending_downloads WHERE id=? AND user_id=? AND EXISTS(SELECT 1 FROM usage_events WHERE id=? AND user_id=?)").bind(id,user.id,id,user.id)
- ]);
- if(!batch[0]?.meta?.changes){const again=await env.KLYPZA_DB.prepare('SELECT status FROM pending_downloads WHERE id=? AND user_id=?').bind(id,user.id).first();if(again?.status==='completed')return json({ok:true,alreadyCompleted:true});return json({error:'quota_unavailable',message:'Daily quota or batch limit has been reached.'},429);}
- const after=await env.KLYPZA_DB.prepare('SELECT COUNT(*) AS used FROM usage_events WHERE user_id=? AND usage_date=?').bind(user.id,day).first();return json({ok:true,usedToday:Number(after?.used||0),remaining:Math.max(0,limits.daily-Number(after?.used||0))});
+ const user=await getSessionUser(request,env);
+ if(!user)return json({error:'login_required'},401);
+ if(Number(user.email_verified)!==1)return json({error:'email_not_verified',message:'Verify your email address before completing downloads.'},403);
+ const access=await getAccountAccess(user,env);
+ if(!access.canDownload)return json({error:'trial_expired',message:'Your free trial has ended. Choose a paid Klypza plan to continue downloading.'},402);
+ let body;
+ try{body=await request.json()}catch{return json({error:'bad_request'},400)}
+ const id=String(body?.id||'');
+ if(!/^[0-9a-f-]{36}$/i.test(id))return json({error:'invalid_download'},400);
+ user={...user,plan:access.plan};
+ const completed=await consumePendingDownload(user,env,id);
+ if(!completed){
+  const current=await env.KLYPZA_DB.prepare('SELECT status FROM pending_downloads WHERE id=? AND user_id=?').bind(id,user.id).first();
+  if(current?.status==='completed')return json({ok:true,alreadyCompleted:true});
+  return json({error:'quota_unavailable',message:'Daily quota or batch limit has been reached.'},429);
+ }
+ const day=utcDate(),limits=planLimits(user.plan);
+ const after=await env.KLYPZA_DB.prepare('SELECT COUNT(*) AS used FROM usage_events WHERE user_id=? AND usage_date=?').bind(user.id,day).first();
+ return json({ok:true,usedToday:Number(after?.used||0),remaining:Math.max(0,limits.daily-Number(after?.used||0))});
 }
 
 async function notifyExpiredTrials(env){
