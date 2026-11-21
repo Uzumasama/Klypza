@@ -1173,6 +1173,7 @@ async function handleCancelDownload(request,env){
  if(Number(r.meta?.changes||0)===1)return json({ok:true,status:'cancelled'});
  const current=await env.KLYPZA_DB.prepare('SELECT status FROM pending_downloads WHERE id=? AND user_id=?').bind(id,user.id).first();
  if(!current)return json({error:'not_found'},404);
+ if(current.status==='cancelled')return json({ok:true,status:'cancelled',alreadyCancelled:true});
  return json({error:'not_cancellable',status:current.status,message:'This task has already started, completed, or expired.'},409);
 }
 
