@@ -39,6 +39,6 @@ test('cancelling a failed pre-provider reservation releases ready, pending, and 
   await cancelPendingDownload({ id: 'user-1' }, { KLYPZA_DB: db }, 'download-1');
   const { statement, values } = db.inspect();
   assert.match(statement, /SET status='cancelled'/);
-  assert.match(statement, /status IN \\('ready','pending','streaming'\\)/);
+  assert.match(statement, /status IN \('ready','pending','streaming'\)/);
   assert.deepEqual(values, ['download-1', 'user-1']);
 });
