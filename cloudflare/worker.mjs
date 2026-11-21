@@ -328,19 +328,21 @@ const PLAN_LIMITS = {
   premium: { daily: 100, batch: 25, price: 9.99, ads: false, quality: 'expanded', queue: 'priority' },
 };
 function planLimits(plan){ return PLAN_LIMITS[String(plan||'free').toLowerCase()] || PLAN_LIMITS.free; }
-async function getAccountAccess(user,env){
-  const now=Date.now();
-  const paid=await env.KLYPZA_DB.prepare("SELECT plan,status,current_period_end,provider,provider_subscription_id,scheduled_change_action,scheduled_change_effective_at,paddle_checked_at FROM subscriptions WHERE user_id=? AND provider='paddle' AND status IN ('active','trialing','past_due') ORDER BY updated_at DESC,created_at DESC LIMIT 1").bind(user.id).first();
+export function resolveAccountAccess(paid,trial,now=Date.now()){
   const paidStatus=String(paid?.status||'').toLowerCase(),paidEnd=paid?.current_period_end?Date.parse(paid.current_period_end):0;
   if(['active','trialing'].includes(paidStatus)||(paidStatus==='past_due'&&paidEnd>now))return {plan:String(paid.plan||'free').toLowerCase(),subscription:paid,trial:null,trialExpired:false,canDownload:true};
-  const trial=await env.KLYPZA_DB.prepare("SELECT plan,status,current_period_start,current_period_end,provider FROM subscriptions WHERE user_id=? AND provider='klypza_trial' ORDER BY created_at ASC LIMIT 1").bind(user.id).first();
   if(trial){
     const end=trial.current_period_end?Date.parse(trial.current_period_end):0,active=String(trial.status||'').toLowerCase()==='trialing'&&end>now;
     return {plan:active?'weekly':'free',subscription:trial,trial:{status:active?'active':'expired',startsAt:trial.current_period_start||null,endsAt:trial.current_period_end||null,daysRemaining:active?Math.max(0,Math.ceil((end-now)/86400000)):0},trialExpired:!active,canDownload:active};
   }
   // Klypza has no permanent free-download tier: every account needs an active trial or paid subscription.
-  // This also closes the legacy-account path where a missing trial row previously fell back to Free access.
   return {plan:'free',subscription:null,trial:{status:'expired',startsAt:null,endsAt:null,daysRemaining:0},trialExpired:true,canDownload:false};
+}
+async function getAccountAccess(user,env){
+  const now=Date.now();
+  const paid=await env.KLYPZA_DB.prepare("SELECT plan,status,current_period_end,provider,provider_subscription_id,scheduled_change_action,scheduled_change_effective_at,paddle_checked_at FROM subscriptions WHERE user_id=? AND provider='paddle' AND status IN ('active','trialing','past_due') ORDER BY updated_at DESC,created_at DESC LIMIT 1").bind(user.id).first();
+  const trial=await env.KLYPZA_DB.prepare("SELECT plan,status,current_period_start,current_period_end,provider FROM subscriptions WHERE user_id=? AND provider='klypza_trial' ORDER BY created_at ASC LIMIT 1").bind(user.id).first();
+  return resolveAccountAccess(paid,trial,now);
 }
 function utcDate(){ return new Date().toISOString().slice(0,10); }
 function paddleEnvironment(env){ return String(env.PADDLE_ENV||'production').toLowerCase()==='sandbox'?'sandbox':'production'; }
