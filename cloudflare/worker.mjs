@@ -1277,7 +1277,7 @@ async function handleDownload(url, env, request) {
     n += 1;
     const ext = guessExt(it);
     const name = `${platform}_${slug(result.title) || 'media'}_${n}.${ext}`;
-    const completionId=await createPendingDownload(user,env,platform,parsed.href,result.title,batchId);if(!completionId){for(const item of items)if(item.completionId)await env.KLYPZA_DB.prepare("UPDATE pending_downloads SET status='cancelled' WHERE id=? AND user_id=? AND status='pending'").bind(item.completionId,user.id).run();return await quotaLimitResponse(user,env,batchId);}
+    const completionId=await createPendingDownload(user,env,platform,parsed.href,result.title,batchId);if(!completionId){for(const item of items)if(item.completionId)await env.KLYPZA_DB.prepare("UPDATE pending_downloads SET status='cancelled' WHERE id=? AND user_id=? AND status IN ('ready','pending')").bind(item.completionId,user.id).run();return await quotaLimitResponse(user,env,batchId);}
     const sig = await hmac(secret, `${it.url}\n${name}\n${expires}\n\n${completionId}`);
     const file = `/api/file?u=${encodeURIComponent(it.url)}&n=${encodeURIComponent(name)}&e=${expires}&d=${completionId}&s=${sig}`;
     items.push({type:it.type,quality:it.quality,watermark:it.watermark,ext,name,thumb:it.type==='image'?it.url:result.thumb,file,completionId});
