@@ -119,6 +119,32 @@ test('expired paid history is not exposed as an active paid dashboard subscripti
   assert.equal(dashboardPaidSubscription(access), null);
 });
 
+test('scheduled Paddle cancellation keeps paid access until Paddle marks it canceled', () => {
+  const scheduled = {
+    plan: 'standard',
+    provider: 'paddle',
+    status: 'active',
+    current_period_end: future,
+    scheduled_change_action: 'cancel',
+    scheduled_change_effective_at: future,
+  };
+  const selected = selectEligiblePaidSubscription([scheduled], NOW);
+  assert.equal(selected, scheduled);
+  assert.equal(resolveAccountAccess(selected, null, NOW).canDownload, true);
+
+  const canceled = selectEligiblePaidSubscription([
+    { ...scheduled, status: 'canceled' },
+  ], NOW);
+  assert.equal(canceled, null);
+});
+
+test('paused Paddle subscription does not grant paid download access', () => {
+  const selected = selectEligiblePaidSubscription([
+    { plan: 'premium', provider: 'paddle', status: 'paused', current_period_end: future },
+  ], NOW);
+  assert.equal(selected, null);
+});
+
 test('eligible Paddle subscription remains visible in dashboard', () => {
   const paid = { plan: 'premium', provider: 'paddle', status: 'active', current_period_end: future };
   const access = resolveAccountAccess(paid, null, NOW);
