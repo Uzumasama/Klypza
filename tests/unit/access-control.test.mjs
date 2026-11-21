@@ -6,7 +6,7 @@ const NOW = Date.parse('2026-11-21T08:00:00Z');
 const future = new Date(NOW + 3 * 86400000).toISOString();
 const past = new Date(NOW - 1000).toISOString();
 
-test('active 7-day trial grants Weekly access and reports remaining days', () => {
+test('active 7-day trial grants Trial access and reports remaining days', () => {
   const trial = { plan: 'weekly', status: 'trialing', current_period_start: new Date(NOW - 86400000).toISOString(), current_period_end: future };
   const access = resolveAccountAccess(null, trial, NOW);
   assert.equal(access.plan, 'trial');
