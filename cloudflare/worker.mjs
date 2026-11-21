@@ -646,18 +646,22 @@ async function startDownloadBatch(request,env){
   await env.KLYPZA_DB.prepare('INSERT INTO download_batches(id,user_id,max_videos) VALUES(?,?,?)').bind(batchId,user.id,requested).run();
   return json({ok:true,batchId,maxBatch:requested,planMaxBatch:limits.batch,dailyLimit:limits.daily,usedToday:used,remaining:limits.daily-used});
 }
-async function checkDownloadAllowance(user,env,batchId){
+export async function checkDownloadAllowance(user,env,batchId){
   if(!batchId)return {ok:false,error:'batch_required',message:'Start a new download batch and try again.'};
   const batch=await env.KLYPZA_DB.prepare('SELECT id,max_videos FROM download_batches WHERE id=? AND user_id=?').bind(batchId,user.id).first();
   if(!batch)return {ok:false,error:'invalid_batch',message:'This download batch is invalid. Start a new batch.'};
-  const day=utcDate();
-  const [daily,batchCount]=await Promise.all([
+  const day=utcDate(),now=Date.now();
+  const [daily,batchCount,dailyPending,batchPending]=await Promise.all([
     env.KLYPZA_DB.prepare('SELECT COUNT(*) AS used FROM usage_events WHERE user_id=? AND usage_date=?').bind(user.id,day).first(),
-    env.KLYPZA_DB.prepare('SELECT COUNT(*) AS used FROM usage_events WHERE user_id=? AND batch_id=?').bind(user.id,batchId).first()
+    env.KLYPZA_DB.prepare('SELECT COUNT(*) AS used FROM usage_events WHERE user_id=? AND batch_id=?').bind(user.id,batchId).first(),
+    env.KLYPZA_DB.prepare("SELECT COUNT(*) AS used FROM pending_downloads WHERE user_id=? AND status IN ('ready','pending','streaming') AND expires_at>?").bind(user.id,now).first(),
+    env.KLYPZA_DB.prepare("SELECT COUNT(*) AS used FROM pending_downloads WHERE user_id=? AND batch_id=? AND status IN ('ready','pending','streaming') AND expires_at>?").bind(user.id,batchId,now).first()
   ]);
+  const dailyUsed=Number(daily?.used||0)+Number(dailyPending?.used||0);
+  const batchUsed=Number(batchCount?.used||0)+Number(batchPending?.used||0);
   const limits=planLimits(user.plan);
-  if(Number(daily?.used||0)>=limits.daily)return {ok:false,error:'daily_limit_reached',message:'Your daily download quota is used up. It resets at 00:00 UTC.'};
-  if(Number(batchCount?.used||0)>=Number(batch.max_videos))return {ok:false,error:'batch_limit_reached',message:'Your plan allows up to '+batch.max_videos+' videos per batch. Start another batch to continue.'};
+  if(dailyUsed>=limits.daily)return {ok:false,error:'daily_limit_reached',message:'Your daily download quota is used up. It resets at 00:00 UTC.'};
+  if(batchUsed>=Number(batch.max_videos))return {ok:false,error:'batch_limit_reached',message:'Your plan allows up to '+batch.max_videos+' videos per batch. Start another batch to continue.'};
   return {ok:true};
 }
 function publicUser(u){return {id:u.id,email:u.email,name:u.display_name,credits:Number(u.credits),plan:u.plan,emailVerified:Number(u.email_verified)===1,createdAt:u.created_at||null};}
