@@ -338,7 +338,9 @@ async function getAccountAccess(user,env){
     const end=trial.current_period_end?Date.parse(trial.current_period_end):0,active=String(trial.status||'').toLowerCase()==='trialing'&&end>now;
     return {plan:active?'weekly':'free',subscription:trial,trial:{status:active?'active':'expired',startsAt:trial.current_period_start||null,endsAt:trial.current_period_end||null,daysRemaining:active?Math.max(0,Math.ceil((end-now)/86400000)):0},trialExpired:!active,canDownload:active};
   }
-  return {plan:String(user.plan||'free').toLowerCase(),subscription:null,trial:null,trialExpired:false,canDownload:true};
+  // Klypza has no permanent free-download tier: every account needs an active trial or paid subscription.
+  // This also closes the legacy-account path where a missing trial row previously fell back to Free access.
+  return {plan:'free',subscription:null,trial:{status:'expired',startsAt:null,endsAt:null,daysRemaining:0},trialExpired:true,canDownload:false};
 }
 function utcDate(){ return new Date().toISOString().slice(0,10); }
 function paddleEnvironment(env){ return String(env.PADDLE_ENV||'production').toLowerCase()==='sandbox'?'sandbox':'production'; }
