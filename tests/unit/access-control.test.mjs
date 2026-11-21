@@ -191,6 +191,8 @@ test('Paddle completed transaction must match the exact pending Klypza order', (
     details: { totals: { subtotal: '599', grand_total: '599' } },
   };
   assert.equal(isValidPaddleOrderTransaction(order, transaction, env), true);
+  assert.equal(isValidPaddleOrderTransaction({ ...order, provider_reference: null }, transaction, env), true);
+  assert.equal(isValidPaddleOrderTransaction({ ...order, provider_reference: 'txn-other' }, transaction, env), false);
   assert.equal(canActivatePaddleOrder(order, transaction, env), true);
   assert.equal(canActivatePaddleOrder({ ...order, status: 'completed' }, transaction, env), false);
   assert.equal(canActivatePaddleOrder({ ...order, currency: 'EUR' }, transaction, env), false);
