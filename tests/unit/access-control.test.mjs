@@ -64,6 +64,9 @@ test('valid paid subscription takes precedence over expired trial', () => {
 
 
 test('approved plan limits remain distinct across Trial and paid tiers', () => {
+  for (const plan of ['free','trial','weekly','standard','premium']) {
+    assert.equal(Object.hasOwn(planLimits(plan), 'ads'), false, `${plan} plan must not carry legacy advertising metadata`);
+  }
   assert.deepEqual({daily:planLimits('trial').daily,batch:planLimits('trial').batch},{daily:10,batch:5});
   assert.deepEqual({daily:planLimits('weekly').daily,batch:planLimits('weekly').batch},{daily:25,batch:5});
   assert.deepEqual({daily:planLimits('standard').daily,batch:planLimits('standard').batch},{daily:60,batch:15});
