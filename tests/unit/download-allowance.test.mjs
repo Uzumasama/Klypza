@@ -27,7 +27,7 @@ function fakeDb({ daily = 0, batch = 0, dailyPending = 0, batchPending = 0, maxV
 }
 
 test('quota preflight includes active pending reservations', async () => {
-  const db = fakeDb({ dailyPending: 9, batchPending: 4, maxVideos: 5 });
+  const db = fakeDb({ dailyPending: 9, batchPending: 5, maxVideos: 5 });
   const result = await checkDownloadAllowance(
     { id: 'user-1', plan: 'trial' },
     { KLYPZA_DB: db },
