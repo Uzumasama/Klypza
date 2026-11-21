@@ -127,6 +127,15 @@ test.describe('Klypza API smoke and access-control checks', () => {
     expect(account.status()).toBe(401);
   });
 
+  test('password changes reject cross-origin requests before session handling', async ({ request }) => {
+    const response = await request.post('/api/account/password', {
+      headers: { Origin: 'https://attacker.example', 'content-type': 'application/json' },
+      data: { currentPassword: 'irrelevant', newPassword: 'irrelevant-password' },
+    });
+    expect(response.status()).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({ message: 'Request origin rejected.' });
+  });
+
 
   test('public plan API reports the approved Sandbox prices and allowances', async ({ request }) => {
     const response = await request.get('/api/plans');
