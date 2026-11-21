@@ -250,20 +250,25 @@ function appPageHtml(path) {
       if (!response.ok) throw new Error('Account status unavailable');
       var data = await response.json();
       var sub = data && data.subscription;
-      var active = !!(sub && String(sub.status || '').toLowerCase() === 'active');
+      var status = String(sub && sub.status || '').toLowerCase();
+      var active = status === 'active';
+      var pastDue = status === 'past_due';
+      var manageable = active || pastDue;
       var cancellationScheduled = !!(active && String(sub.scheduled_change_action || '').toLowerCase() === 'cancel');
-      portal.hidden = !active;
-      portal.style.display = active ? 'inline-flex' : 'none';
-      portal.setAttribute('aria-hidden', active ? 'false' : 'true');
-      updatePayment.hidden = !active;
-      updatePayment.style.display = active ? 'inline-flex' : 'none';
-      updatePayment.setAttribute('aria-hidden', active ? 'false' : 'true');
-      cancel.hidden = !active || cancellationScheduled;
-      cancel.style.display = active && !cancellationScheduled ? 'inline-flex' : 'none';
-      cancel.setAttribute('aria-hidden', active && !cancellationScheduled ? 'false' : 'true');
+      portal.hidden = !manageable;
+      portal.style.display = manageable ? 'inline-flex' : 'none';
+      portal.setAttribute('aria-hidden', manageable ? 'false' : 'true');
+      updatePayment.hidden = !manageable;
+      updatePayment.style.display = manageable ? 'inline-flex' : 'none';
+      updatePayment.setAttribute('aria-hidden', manageable ? 'false' : 'true');
+      cancel.hidden = !manageable || cancellationScheduled;
+      cancel.style.display = manageable && !cancellationScheduled ? 'inline-flex' : 'none';
+      cancel.setAttribute('aria-hidden', manageable && !cancellationScheduled ? 'false' : 'true');
       var notice = document.getElementById('membershipNotice');
       if (notice) {
-        if (cancellationScheduled) {
+        if (pastDue) {
+          notice.textContent = 'Your subscription payment is past due. Update your payment method in the billing portal to restore normal billing. Your access remains available only while the current paid period is valid.';
+        } else if (cancellationScheduled) {
           var effectiveAt = sub.scheduled_change_effective_at || sub.current_period_end;
           notice.textContent = 'Your subscription cancellation is scheduled. Your paid access remains active until ' + (effectiveAt ? new Date(effectiveAt).toLocaleString() : 'the end of the current billing period') + '. You can use the billing portal if you want to reverse the cancellation.';
         } else if (active) {
