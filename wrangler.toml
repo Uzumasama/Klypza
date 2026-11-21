@@ -23,3 +23,6 @@ enabled = true
 binding = "KLYPZA_DB"
 database_name = "klypza_accounts"
 database_id = "72c5379f-cd8d-41c0-b997-8bebdb0a3876"
+
+[triggers]
+crons = ["0 * * * *"]
