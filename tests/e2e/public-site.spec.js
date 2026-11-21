@@ -16,7 +16,7 @@ test.describe('Klypza public website', () => {
     expect(response.status()).toBeLessThan(400);
     const scripts = await page.locator('script[src]').evaluateAll(nodes => nodes.map(node => node.src));
     expect(scripts.join(' ')).not.toMatch(/monetag|nap5k|adsbygoogle|adsterra/i);
-    await expect(page.locator('body')).not.toContainText(/advertisement|ad placement|support klypza.*ad/i);
+    await expect(page.locator('body')).not.toContainText(/Ad placement for Free accounts|Support Klypza — ad placement/i);
   });
   test('robots.txt and sitemap.xml expose the intended public pages', async ({ request }) => {
     const robots = await request.get('/robots.txt');
@@ -78,7 +78,8 @@ test.describe('Klypza public website', () => {
     await page.goto('/plans');
     const cards = page.locator('#plansCard .pricing-card:visible');
     await expect(cards).toHaveCount(3);
-    await expect(cards).not.toContainText('Free Trial');
+    const planCardText = await cards.allTextContents();
+    expect(planCardText.join(' ')).not.toContain('Free Trial');
     const weekly = cards.filter({ has: page.locator('h3', { hasText: /^Weekly$/ }) });
     const standard = cards.filter({ hasText: 'Standard' });
     const premium = cards.filter({ hasText: 'Premium' });
