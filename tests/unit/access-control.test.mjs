@@ -188,7 +188,7 @@ test('Paddle completed transaction must match the exact pending Klypza order', (
     id: 'txn-1', status: 'completed', currency_code: 'USD',
     custom_data: { klypza_order_id: 'order-1', klypza_user_id: 'user-1', klypza_plan: 'standard' },
     items: [{ price: { id: 'pri_standard' }, quantity: 1 }],
-    details: { totals: { currency_code: 'USD', subtotal: '599', grand_total: '599' } },
+    details: { totals: { subtotal: '599', grand_total: '599' } },
   };
   assert.equal(isValidPaddleOrderTransaction(order, transaction, env), true);
   assert.equal(isValidPaddleOrderTransaction(order, { ...transaction, id: 'txn-other' }, env), false);
