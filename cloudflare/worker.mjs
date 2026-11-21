@@ -809,12 +809,13 @@ async function updateAccountProfile(request,env){
 async function accountOverview(request,env){
   const user=await getSessionUser(request,env); if(!user)return json({message:'Please log in to view your dashboard.'},401);
   const day=utcDate();
-  const [downloads,transactions,subscription,usedRow]=await Promise.all([
+  const [downloads,transactions,latestSubscription,usedRow]=await Promise.all([
     env.KLYPZA_DB.prepare('SELECT platform,title,credits_used,status,created_at FROM downloads WHERE user_id=? ORDER BY created_at DESC LIMIT 20').bind(user.id).all(),
     env.KLYPZA_DB.prepare('SELECT amount,balance_after,reason,created_at FROM credit_transactions WHERE user_id=? ORDER BY created_at DESC LIMIT 30').bind(user.id).all(),
     env.KLYPZA_DB.prepare("SELECT plan,status,current_period_end,provider,provider_subscription_id,scheduled_change_action,scheduled_change_effective_at,paddle_checked_at FROM subscriptions WHERE user_id=? ORDER BY updated_at DESC, created_at DESC LIMIT 1").bind(user.id).first(),
     env.KLYPZA_DB.prepare('SELECT COUNT(*) AS used FROM usage_events WHERE user_id=? AND usage_date=?').bind(user.id,day).first()
   ]);
+  let subscription=latestSubscription;
   if(subscription?.provider==='paddle'&&subscription?.provider_subscription_id&&paddleApiKey(env)&&(!subscription.paddle_checked_at||Date.now()-Date.parse(subscription.paddle_checked_at)>600000)){try{const rr=await fetch(paddleApiBase(env)+'/subscriptions/'+encodeURIComponent(subscription.provider_subscription_id),{headers:{'Authorization':'Bearer '+paddleApiKey(env),'Paddle-Version':'1','Accept':'application/json'}});const jj=await rr.json();if(rr.ok&&jj?.data){const sc=jj.data.scheduled_change||{};subscription.scheduled_change_action=sc.action||null;subscription.scheduled_change_effective_at=sc.effective_at||null;subscription.current_period_end=jj.data.current_billing_period?.ends_at||subscription.current_period_end;subscription.status=jj.data.status||subscription.status;await env.KLYPZA_DB.prepare('UPDATE subscriptions SET status=?,current_period_end=?,scheduled_change_action=?,scheduled_change_effective_at=?,paddle_checked_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE provider=\'paddle\' AND provider_subscription_id=?').bind(subscription.status,subscription.current_period_end,subscription.scheduled_change_action,subscription.scheduled_change_effective_at,subscription.provider_subscription_id).run();}else{await env.KLYPZA_DB.prepare('UPDATE subscriptions SET paddle_checked_at=CURRENT_TIMESTAMP WHERE provider=\'paddle\' AND provider_subscription_id=?').bind(subscription.provider_subscription_id).run();}}catch(syncErr){console.error('PADDLE_SUBSCRIPTION_SYNC',String(syncErr));}}
   const access=await getAccountAccess(user,env);
   subscription=access.subscription||subscription;
