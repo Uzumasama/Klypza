@@ -1403,8 +1403,7 @@ async function handleFile(url, env, request) {
     try { await up.body.cancel(); } catch { /* ignore */ }
     return json({error:'file_too_large',message:"This file exceeds Klypza's secure transfer limit. No quota was deducted."},413);
   }
-  const charged=await consumePendingDownload(user,env,downloadId);if(!charged){try{await up.body.cancel();}catch{}return json({error:'quota_unavailable_or_token_used',message:'This download token has already been used or your quota is unavailable.'},429);}
-
+  // Keep the reservation pending while bytes are streamed. Consume the credit only after EOF.
   const headers = new Headers();
   headers.set('content-type', up.headers.get('content-type') || 'application/octet-stream');
   const len = up.headers.get('content-length');
