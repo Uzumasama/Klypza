@@ -882,6 +882,29 @@ async function handleDownloadComplete(request,env){
  const after=await env.KLYPZA_DB.prepare('SELECT COUNT(*) AS used FROM usage_events WHERE user_id=? AND usage_date=?').bind(user.id,day).first();return json({ok:true,usedToday:Number(after?.used||0),remaining:Math.max(0,limits.daily-Number(after?.used||0))});
 }
 
+async function notifyExpiredTrials(env){
+  if(!env.KLYPZA_DB||!env.RESEND_API_KEY)return;
+  await env.KLYPZA_DB.prepare("CREATE TABLE IF NOT EXISTS trial_notifications (user_id TEXT NOT NULL, notification_type TEXT NOT NULL, sent_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(user_id,notification_type))").run();
+  const now=new Date().toISOString();
+  const rows=await env.KLYPZA_DB.prepare("SELECT s.id AS trial_id,s.user_id,u.email,u.display_name FROM subscriptions s JOIN users u ON u.id=s.user_id LEFT JOIN subscriptions p ON p.user_id=s.user_id AND p.provider='paddle' AND p.status IN ('active','trialing','past_due') AND (p.status!='past_due' OR p.current_period_end>?) LEFT JOIN trial_notifications n ON n.user_id=s.user_id AND n.notification_type='trial_expired' WHERE s.provider='klypza_trial' AND s.status='trialing' AND s.current_period_end<=? AND p.id IS NULL AND n.user_id IS NULL ORDER BY s.current_period_end ASC LIMIT 100").bind(now,now).all();
+  for(const user of rows.results||[]){
+    const name=String(user.display_name||'there').replace(/[<>]/g,'').slice(0,60);
+    const link='https://klypza.web.id/plans';
+    try{
+      const response=await fetch('https://api.resend.com/emails',{method:'POST',headers:{authorization:'Bearer '+env.RESEND_API_KEY,'content-type':'application/json'},body:JSON.stringify({
+        from:'Klypza <verify@klypza.web.id>',to:[user.email],subject:'Your Klypza free trial has ended',
+        html:'<div style="font-family:Arial,sans-serif;max-width:560px;margin:32px auto;padding:28px;color:#111936;border:1px solid #e5e8f2;border-radius:18px"><h1>Your free trial has ended</h1><p>Hello '+name+',</p><p>Your 7-day Klypza trial has ended. Downloads are now paused, but your account and download history remain available.</p><p>Continue with the Weekly plan for <strong>$1 per week</strong> (10 downloads per day, up to 5 videos per batch), or choose Standard or Premium.</p><p style="margin:26px 0"><a href="'+link+'" style="display:inline-block;padding:13px 20px;background:#2878f0;color:#fff;text-decoration:none;border-radius:10px;font-weight:bold">View subscription plans</a></p><p style="color:#64708a;font-size:13px">Klypza · klypza.web.id</p></div>',
+        text:'Hello '+name+',\nYour 7-day Klypza trial has ended and downloads are paused. Continue with Weekly for $1/week (10 videos/day, 5 per batch), or choose Standard or Premium: '+link
+      })});
+      if(!response.ok){console.error('KLYPZA_TRIAL_EXPIRY_EMAIL',response.status,await response.text());continue;}
+      await env.KLYPZA_DB.batch([
+        env.KLYPZA_DB.prepare("INSERT OR IGNORE INTO trial_notifications(user_id,notification_type) VALUES(?,'trial_expired')").bind(user.user_id),
+        env.KLYPZA_DB.prepare("UPDATE subscriptions SET status='expired',updated_at=CURRENT_TIMESTAMP WHERE id=? AND provider='klypza_trial' AND status='trialing'").bind(user.trial_id)
+      ]);
+    }catch(err){console.error('KLYPZA_TRIAL_EXPIRY_EMAIL',String(err));}
+  }
+}
+
 export default {
   async fetch(request, env) {
   const url = new URL(request.url);
@@ -955,6 +978,7 @@ export default {
   }
   return json({ error: 'not_found' }, 404);
   },
+  async scheduled(controller,env,ctx){ctx.waitUntil(notifyExpiredTrials(env));},
 };
 
 function securityHeaders(extra = {}) { return { 'x-content-type-options':'nosniff', 'x-frame-options':'DENY', 'referrer-policy':'strict-origin-when-cross-origin', 'permissions-policy':'camera=(), microphone=(), geolocation=()', 'strict-transport-security':'max-age=31536000', ...extra }; }
