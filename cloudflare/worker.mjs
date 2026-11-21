@@ -1003,7 +1003,7 @@ async function consumePendingDownload(user,env,id){
 }
 
 async function handleDownloadComplete(request,env){
- const user=await getSessionUser(request,env);
+ let user=await getSessionUser(request,env);
  if(!user)return json({error:'login_required'},401);
  if(Number(user.email_verified)!==1)return json({error:'email_not_verified',message:'Verify your email address before completing downloads.'},403);
  const access=await getAccountAccess(user,env);
