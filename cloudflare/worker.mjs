@@ -18,7 +18,7 @@ function appPageHtml(path) {
   let html = INDEX_HTML;
   const base = 'https://klypza.web.id' + (path === '/' ? '/' : path);
   const meta = path === '/plans'
-    ? { title: 'Klypza Plans — 7-Day Trial, Weekly, Standard & Premium', description: 'Compare Klypza plans: 7-day free trial, $1 weekly subscription, Standard and Premium, including daily download limits and batch sizes.', robots: 'index,follow' }
+    ? { title: 'Klypza Plans — Weekly, Standard & Premium', description: 'Compare Klypza subscriptions: $1 weekly, Standard and Premium plans, daily download limits and batch sizes.', robots: 'index,follow' }
     : path === '/login'
       ? { title: 'Log In — Klypza', description: 'Log in to your Klypza account to manage downloads, usage and account settings.', robots: 'noindex,nofollow' }
       : path === '/register'
