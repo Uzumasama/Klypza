@@ -506,6 +506,9 @@ async function handlePaddleWebhook(request,env){
    if(oid){
     const o=await env.KLYPZA_DB.prepare("SELECT id,user_id,plan,amount_minor,currency,status,provider_reference FROM payment_orders WHERE id=? AND provider='paddle'").bind(oid).first();
     if(o){
+     if(o.status!=='pending'||String(o.currency||'').toUpperCase()!=='USD'||!isValidPaddleOrderTransaction(o,d,env)){
+      console.error('PADDLE_TRANSACTION_VALIDATION_FAILED',id,oid);
+     }else{
      const sid=String(d.subscription_id||''),bp=d.billing_period||{},start=bp.starts_at||d.billed_at||occurredAt||new Date().toISOString(),end=bp.ends_at||null;
      const existingSub=sid?await env.KLYPZA_DB.prepare("SELECT id,paddle_event_occurred_at FROM subscriptions WHERE user_id=? AND provider='paddle' AND provider_subscription_id=? ORDER BY updated_at DESC,id DESC LIMIT 1").bind(o.user_id,sid).first():null;
      const subscriptionRowId=paddleSubscriptionRowId(existingSub?.id,sid);
@@ -514,6 +517,7 @@ async function handlePaddleWebhook(request,env){
      if(applyEvent&&subscriptionRowId)statements.push(env.KLYPZA_DB.prepare("UPDATE users SET plan=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(o.plan,o.user_id));
      if(subscriptionRowId)statements.push(env.KLYPZA_DB.prepare("INSERT INTO subscriptions(id,user_id,plan,status,provider,provider_subscription_id,current_period_start,current_period_end,paddle_event_occurred_at) VALUES(?,?,?,'active','paddle',?,?,?,?) ON CONFLICT(id) DO UPDATE SET plan=CASE WHEN subscriptions.paddle_event_occurred_at IS NULL OR (excluded.paddle_event_occurred_at IS NOT NULL AND excluded.paddle_event_occurred_at>=subscriptions.paddle_event_occurred_at) THEN excluded.plan ELSE subscriptions.plan END,status=CASE WHEN subscriptions.paddle_event_occurred_at IS NULL OR (excluded.paddle_event_occurred_at IS NOT NULL AND excluded.paddle_event_occurred_at>=subscriptions.paddle_event_occurred_at) THEN 'active' ELSE subscriptions.status END,provider_subscription_id=COALESCE(excluded.provider_subscription_id,subscriptions.provider_subscription_id),current_period_start=CASE WHEN subscriptions.paddle_event_occurred_at IS NULL OR (excluded.paddle_event_occurred_at IS NOT NULL AND excluded.paddle_event_occurred_at>=subscriptions.paddle_event_occurred_at) THEN COALESCE(excluded.current_period_start,subscriptions.current_period_start) ELSE subscriptions.current_period_start END,current_period_end=CASE WHEN subscriptions.paddle_event_occurred_at IS NULL OR (excluded.paddle_event_occurred_at IS NOT NULL AND excluded.paddle_event_occurred_at>=subscriptions.paddle_event_occurred_at) THEN COALESCE(excluded.current_period_end,subscriptions.current_period_end) ELSE subscriptions.current_period_end END,paddle_event_occurred_at=CASE WHEN subscriptions.paddle_event_occurred_at IS NULL OR (excluded.paddle_event_occurred_at IS NOT NULL AND excluded.paddle_event_occurred_at>=subscriptions.paddle_event_occurred_at) THEN COALESCE(excluded.paddle_event_occurred_at,subscriptions.paddle_event_occurred_at) ELSE subscriptions.paddle_event_occurred_at END,updated_at=CURRENT_TIMESTAMP").bind(subscriptionRowId,o.user_id,o.plan,sid||null,start,end,occurredAt||null));
      await env.KLYPZA_DB.batch(statements);
+     }
     }
    }
   }else if(type.startsWith('subscription.')){
