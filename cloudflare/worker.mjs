@@ -896,19 +896,8 @@ export default {
       // Paid plans never receive the tag, so Standard/Premium remain ad-free.
       if (url.pathname === '/' || url.pathname === '/dashboard') {
         const adUser = await getSessionUser(request, env);
-        let adPlan = adUser ? String(adUser.plan || 'free').toLowerCase() : 'free';
-        if (adUser) {
-          const adSubscription = await env.KLYPZA_DB.prepare(
-            "SELECT plan,status,current_period_end,provider FROM subscriptions WHERE user_id=? ORDER BY updated_at DESC, created_at DESC LIMIT 1"
-          ).bind(adUser.id).first();
-          if (adSubscription && adSubscription.provider === 'paddle') {
-            const adStatus = String(adSubscription.status || '').toLowerCase();
-            const inPaidPeriod = adStatus === 'past_due' && adSubscription.current_period_end && Date.parse(adSubscription.current_period_end) > Date.now();
-            adPlan = (['active','trialing'].includes(adStatus) || inPaidPeriod)
-              ? String(adSubscription.plan || adPlan).toLowerCase()
-              : 'free';
-          }
-        }
+        const adAccess = adUser ? await getAccountAccess(adUser, env) : {plan:'free'};
+        const adPlan = String(adAccess.plan || 'free').toLowerCase();
         if (adPlan === 'free') {
           // Keep the tag in <head> for Monetag Installation Check and exclude it from Cloudflare Rocket Loader.
           const monetagTag = '<script data-cfasync="false">(function(s){s.dataset.zone="12312106";s.src="https://nap5k.com/tag.min.js";s.async=true;s.setAttribute("data-cfasync","false");})(document.head.appendChild(document.createElement("script")))</script>';
