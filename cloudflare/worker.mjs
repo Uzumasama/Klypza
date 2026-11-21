@@ -1075,6 +1075,8 @@ async function purgeExpiredOperationalRows(env){
     env.KLYPZA_DB.prepare('CREATE INDEX IF NOT EXISTS idx_email_verification_expiry ON email_verification_tokens(expires_at)'),
     env.KLYPZA_DB.prepare('CREATE INDEX IF NOT EXISTS idx_password_reset_expiry ON password_reset_tokens(expires_at)'),
     env.KLYPZA_DB.prepare('CREATE INDEX IF NOT EXISTS idx_pending_downloads_expiry ON pending_downloads(CAST(expires_at AS INTEGER))'),
+    env.KLYPZA_DB.prepare('CREATE INDEX IF NOT EXISTS idx_pending_downloads_batch_status ON pending_downloads(user_id,batch_id,status,expires_at)'),
+    env.KLYPZA_DB.prepare('CREATE UNIQUE INDEX IF NOT EXISTS idx_credit_transactions_reference ON credit_transactions(reference_id) WHERE reference_id IS NOT NULL'),
     env.KLYPZA_DB.prepare('CREATE INDEX IF NOT EXISTS idx_auth_login_attempts_expiry ON auth_login_attempts(datetime(window_started_at))'),
     env.KLYPZA_DB.prepare('DELETE FROM sessions WHERE expires_at<=?').bind(now),
     env.KLYPZA_DB.prepare('DELETE FROM email_verification_tokens WHERE expires_at<=?').bind(now),
