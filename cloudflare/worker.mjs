@@ -523,7 +523,12 @@ async function handlePaddleWebhook(request,env){
      const subscriptionRowId=paddleSubscriptionRowId(existingSub?.id,sid);
      const applyEvent=isPaddleEventNewer(occurredAt,existingSub?.paddle_event_occurred_at);
      const statements=[env.KLYPZA_DB.prepare("UPDATE payment_orders SET status='completed',provider_reference=?,period_start=?,period_end=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND provider='paddle'").bind(String(d.id||''),start,end,oid)];
-     if(applyEvent&&subscriptionRowId)statements.push(env.KLYPZA_DB.prepare("UPDATE users SET plan=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(o.plan,o.user_id));
+     if(applyEvent&&subscriptionRowId){
+      statements.push(env.KLYPZA_DB.prepare("UPDATE users SET plan=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(o.plan,o.user_id));
+      statements.push(env.KLYPZA_DB.prepare("DELETE FROM downloads WHERE user_id=? AND datetime(created_at)<datetime(?)").bind(o.user_id,start));
+      statements.push(env.KLYPZA_DB.prepare("DELETE FROM credit_transactions WHERE user_id=? AND datetime(created_at)<datetime(?)").bind(o.user_id,start));
+      statements.push(env.KLYPZA_DB.prepare("DELETE FROM usage_events WHERE user_id=? AND usage_date<date(?)").bind(o.user_id,start));
+     }
      if(subscriptionRowId)statements.push(env.KLYPZA_DB.prepare("INSERT INTO subscriptions(id,user_id,plan,status,provider,provider_subscription_id,current_period_start,current_period_end,paddle_event_occurred_at) VALUES(?,?,?,'active','paddle',?,?,?,?) ON CONFLICT(id) DO UPDATE SET plan=CASE WHEN subscriptions.paddle_event_occurred_at IS NULL OR (excluded.paddle_event_occurred_at IS NOT NULL AND excluded.paddle_event_occurred_at>=subscriptions.paddle_event_occurred_at) THEN excluded.plan ELSE subscriptions.plan END,status=CASE WHEN subscriptions.paddle_event_occurred_at IS NULL OR (excluded.paddle_event_occurred_at IS NOT NULL AND excluded.paddle_event_occurred_at>=subscriptions.paddle_event_occurred_at) THEN 'active' ELSE subscriptions.status END,provider_subscription_id=COALESCE(excluded.provider_subscription_id,subscriptions.provider_subscription_id),current_period_start=CASE WHEN subscriptions.paddle_event_occurred_at IS NULL OR (excluded.paddle_event_occurred_at IS NOT NULL AND excluded.paddle_event_occurred_at>=subscriptions.paddle_event_occurred_at) THEN COALESCE(excluded.current_period_start,subscriptions.current_period_start) ELSE subscriptions.current_period_start END,current_period_end=CASE WHEN subscriptions.paddle_event_occurred_at IS NULL OR (excluded.paddle_event_occurred_at IS NOT NULL AND excluded.paddle_event_occurred_at>=subscriptions.paddle_event_occurred_at) THEN COALESCE(excluded.current_period_end,subscriptions.current_period_end) ELSE subscriptions.current_period_end END,paddle_event_occurred_at=CASE WHEN subscriptions.paddle_event_occurred_at IS NULL OR (excluded.paddle_event_occurred_at IS NOT NULL AND excluded.paddle_event_occurred_at>=subscriptions.paddle_event_occurred_at) THEN COALESCE(excluded.paddle_event_occurred_at,subscriptions.paddle_event_occurred_at) ELSE subscriptions.paddle_event_occurred_at END,updated_at=CURRENT_TIMESTAMP").bind(subscriptionRowId,o.user_id,o.plan,sid||null,start,end,occurredAt||null));
      await env.KLYPZA_DB.batch(statements);
      }
@@ -1028,6 +1033,30 @@ async function handleDownloadComplete(request,env){
  return json({ok:true,usedToday:Number(after?.used||0),remaining:Math.max(0,limits.daily-Number(after?.used||0))});
 }
 
+export function expiredPaidHistoryCutoff(subscription,now=Date.now()){
+  if(!subscription||String(subscription.provider||'').toLowerCase()!=='paddle')return null;
+  const status=String(subscription.status||'').toLowerCase();
+  if(!['canceled','cancelled','paused','past_due','expired','ended','inactive'].includes(status))return null;
+  const end=Date.parse(subscription.current_period_end||'');
+  if(!Number.isFinite(end)||end>now)return null;
+  return new Date(end).toISOString();
+}
+
+async function purgeExpiredPaidHistory(env){
+  if(!env.KLYPZA_DB)return;
+  const now=new Date().toISOString();
+  const rows=await env.KLYPZA_DB.prepare("SELECT s.user_id,MAX(s.current_period_end) AS current_period_end,MAX(s.status) AS status FROM subscriptions s WHERE s.provider='paddle' AND s.current_period_end IS NOT NULL AND lower(s.status) IN ('canceled','cancelled','paused','past_due','expired','ended','inactive') AND datetime(s.current_period_end)<=datetime(?) AND NOT EXISTS(SELECT 1 FROM subscriptions a WHERE a.user_id=s.user_id AND a.provider='paddle' AND a.id<>s.id AND lower(a.status) IN ('active','trialing','past_due') AND (a.current_period_end IS NULL OR datetime(a.current_period_end)>datetime(?))) GROUP BY s.user_id ORDER BY MAX(s.current_period_end) ASC LIMIT 100").bind(now,now).all();
+  for(const row of rows.results||[]){
+    const cutoff=expiredPaidHistoryCutoff({provider:'paddle',status:row.status,current_period_end:row.current_period_end});
+    if(!cutoff)continue;
+    await env.KLYPZA_DB.batch([
+      env.KLYPZA_DB.prepare('DELETE FROM downloads WHERE user_id=? AND datetime(created_at)<=datetime(?)').bind(row.user_id,cutoff),
+      env.KLYPZA_DB.prepare('DELETE FROM credit_transactions WHERE user_id=? AND datetime(created_at)<=datetime(?)').bind(row.user_id,cutoff),
+      env.KLYPZA_DB.prepare('DELETE FROM usage_events WHERE user_id=? AND usage_date<=date(?)').bind(row.user_id,cutoff)
+    ]);
+  }
+}
+
 async function notifyExpiredTrials(env){
   if(!env.KLYPZA_DB||!env.RESEND_API_KEY)return;
   await env.KLYPZA_DB.prepare("CREATE TABLE IF NOT EXISTS trial_notifications (user_id TEXT NOT NULL, notification_type TEXT NOT NULL, sent_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(user_id,notification_type))").run();
@@ -1111,7 +1140,7 @@ export default {
   }
   return json({ error: 'not_found' }, 404);
   },
-  async scheduled(controller,env,ctx){ctx.waitUntil(notifyExpiredTrials(env));},
+  async scheduled(controller,env,ctx){ctx.waitUntil(Promise.all([notifyExpiredTrials(env),purgeExpiredPaidHistory(env)]));},
 };
 
 function securityHeaders(extra = {}) { return { 'x-content-type-options':'nosniff', 'x-frame-options':'DENY', 'referrer-policy':'strict-origin-when-cross-origin', 'permissions-policy':'camera=(), microphone=(), geolocation=()', 'strict-transport-security':'max-age=31536000', ...extra }; }
