@@ -24,7 +24,7 @@ test.describe('Klypza public website', () => {
     expect(response.status()).toBeLessThan(400);
     await expect(page.locator('h1')).toHaveText('Privacy Policy');
     const body = await page.locator('body').innerText();
-    expect(body).not.toMatch(/advertis|\\bads?\\b|monetag/i);
+    expect(body).not.toMatch(/advertis|\bads?\b|monetag/i);
     expect(body).toMatch(/essential cookies/i);
     expect(body).toMatch(/keep you signed in/i);
   });
