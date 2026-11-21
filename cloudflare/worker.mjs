@@ -346,7 +346,7 @@ export function resolveAccountAccess(paid,trial,now=Date.now()){
 }
 async function getAccountAccess(user,env){
   const now=Date.now();
-  const paid=await env.KLYPZA_DB.prepare("SELECT plan,status,current_period_end,provider,provider_subscription_id,scheduled_change_action,scheduled_change_effective_at,paddle_checked_at FROM subscriptions WHERE user_id=? AND provider='paddle' AND status IN ('active','trialing','past_due') ORDER BY updated_at DESC,created_at DESC,CASE WHEN provider_subscription_id IS NOT NULL THEN 1 ELSE 0 END DESC,current_period_end DESC,id DESC LIMIT 1").bind(user.id).first();
+  const paid=await env.KLYPZA_DB.prepare("SELECT plan,status,current_period_end,provider,provider_subscription_id,scheduled_change_action,scheduled_change_effective_at,paddle_checked_at FROM subscriptions WHERE user_id=? AND provider='paddle' AND status IN ('active','trialing','past_due') ORDER BY CASE plan WHEN 'premium' THEN 3 WHEN 'standard' THEN 2 WHEN 'weekly' THEN 1 ELSE 0 END DESC,updated_at DESC,created_at DESC,CASE WHEN provider_subscription_id IS NOT NULL THEN 1 ELSE 0 END DESC,current_period_end DESC,id DESC LIMIT 1").bind(user.id).first();
   const trial=await env.KLYPZA_DB.prepare("SELECT plan,status,current_period_start,current_period_end,provider FROM subscriptions WHERE user_id=? AND provider='klypza_trial' ORDER BY created_at ASC LIMIT 1").bind(user.id).first();
   return resolveAccountAccess(paid,trial,now);
 }
@@ -836,7 +836,7 @@ async function accountOverview(request,env){
   const [downloads,transactions,latestSubscription,usedRow]=await Promise.all([
     env.KLYPZA_DB.prepare('SELECT platform,title,credits_used,status,created_at FROM downloads WHERE user_id=? ORDER BY created_at DESC LIMIT 20').bind(user.id).all(),
     env.KLYPZA_DB.prepare('SELECT amount,balance_after,reason,created_at FROM credit_transactions WHERE user_id=? ORDER BY created_at DESC LIMIT 30').bind(user.id).all(),
-    env.KLYPZA_DB.prepare("SELECT plan,status,current_period_end,provider,provider_subscription_id,scheduled_change_action,scheduled_change_effective_at,paddle_checked_at FROM subscriptions WHERE user_id=? ORDER BY updated_at DESC, created_at DESC,CASE WHEN provider_subscription_id IS NOT NULL THEN 1 ELSE 0 END DESC,current_period_end DESC,id DESC LIMIT 1").bind(user.id).first(),
+    env.KLYPZA_DB.prepare("SELECT plan,status,current_period_end,provider,provider_subscription_id,scheduled_change_action,scheduled_change_effective_at,paddle_checked_at FROM subscriptions WHERE user_id=? ORDER BY CASE WHEN provider='paddle' THEN 1 ELSE 0 END DESC,CASE plan WHEN 'premium' THEN 3 WHEN 'standard' THEN 2 WHEN 'weekly' THEN 1 ELSE 0 END DESC,updated_at DESC, created_at DESC,CASE WHEN provider_subscription_id IS NOT NULL THEN 1 ELSE 0 END DESC,current_period_end DESC,id DESC LIMIT 1").bind(user.id).first(),
     env.KLYPZA_DB.prepare('SELECT COUNT(*) AS used FROM usage_events WHERE user_id=? AND usage_date=?').bind(user.id,day).first()
   ]);
   if(paddleApiKey(env)){
