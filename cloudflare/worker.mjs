@@ -346,7 +346,7 @@ export function resolveAccountAccess(paid,trial,now=Date.now()){
 }
 async function getAccountAccess(user,env){
   const now=Date.now();
-  const paid=await env.KLYPZA_DB.prepare("SELECT plan,status,current_period_end,provider,provider_subscription_id,scheduled_change_action,scheduled_change_effective_at,paddle_checked_at FROM subscriptions WHERE user_id=? AND provider='paddle' AND status IN ('active','trialing','past_due') ORDER BY updated_at DESC,created_at DESC LIMIT 1").bind(user.id).first();
+  const paid=await env.KLYPZA_DB.prepare("SELECT plan,status,current_period_end,provider,provider_subscription_id,scheduled_change_action,scheduled_change_effective_at,paddle_checked_at FROM subscriptions WHERE user_id=? AND provider='paddle' AND status IN ('active','trialing','past_due') ORDER BY updated_at DESC,created_at DESC,CASE WHEN provider_subscription_id IS NOT NULL THEN 1 ELSE 0 END DESC,current_period_end DESC,id DESC LIMIT 1").bind(user.id).first();
   const trial=await env.KLYPZA_DB.prepare("SELECT plan,status,current_period_start,current_period_end,provider FROM subscriptions WHERE user_id=? AND provider='klypza_trial' ORDER BY created_at ASC LIMIT 1").bind(user.id).first();
   return resolveAccountAccess(paid,trial,now);
 }
@@ -455,7 +455,7 @@ async function handlePaddleWebhook(request,env){
     const o=await env.KLYPZA_DB.prepare("SELECT id,user_id,plan FROM payment_orders WHERE id=? AND provider='paddle'").bind(oid).first();
     if(o){
      const sid=String(d.subscription_id||''),bp=d.billing_period||{},start=bp.starts_at||d.billed_at||occurredAt||new Date().toISOString(),end=bp.ends_at||null;
-     const existingSub=sid?await env.KLYPZA_DB.prepare("SELECT id,paddle_event_occurred_at FROM subscriptions WHERE user_id=? AND provider='paddle' AND provider_subscription_id=? ORDER BY updated_at DESC LIMIT 1").bind(o.user_id,sid).first():null;
+     const existingSub=sid?await env.KLYPZA_DB.prepare("SELECT id,paddle_event_occurred_at FROM subscriptions WHERE user_id=? AND provider='paddle' AND provider_subscription_id=? ORDER BY updated_at DESC,id DESC LIMIT 1").bind(o.user_id,sid).first():null;
      const subscriptionRowId=paddleSubscriptionRowId(existingSub?.id,sid);
      const applyEvent=!existingSub?.paddle_event_occurred_at||(!!occurredAt&&Date.parse(occurredAt)>=Date.parse(existingSub.paddle_event_occurred_at));
      const statements=[env.KLYPZA_DB.prepare("UPDATE payment_orders SET status='completed',provider_reference=?,period_start=?,period_end=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND provider='paddle'").bind(String(d.id||''),start,end,oid)];
@@ -467,7 +467,7 @@ async function handlePaddleWebhook(request,env){
   }else if(type.startsWith('subscription.')){
    const sid=String(d.id||''),uid=String(c.klypza_user_id||''),plan=String(c.klypza_plan||''),bp=d.current_billing_period||{},sc=d.scheduled_change||{},scheduledAction=String(sc.action||''),scheduledAt=sc.effective_at||null,status=String(d.status||'active').toLowerCase();
    if(sid){
-    const old=await env.KLYPZA_DB.prepare("SELECT id,user_id,plan,paddle_event_occurred_at FROM subscriptions WHERE provider='paddle' AND provider_subscription_id=?").bind(sid).first();
+    const old=await env.KLYPZA_DB.prepare("SELECT id,user_id,plan,paddle_event_occurred_at FROM subscriptions WHERE provider='paddle' AND provider_subscription_id=? ORDER BY updated_at DESC,id DESC LIMIT 1").bind(sid).first();
     const userId=old?.user_id||uid,pl=old?.plan||plan;
     const applyEvent=!old?.paddle_event_occurred_at||(!!occurredAt&&Date.parse(occurredAt)>=Date.parse(old.paddle_event_occurred_at));
     if(userId&&pl&&applyEvent){
@@ -515,7 +515,7 @@ async function createPaddlePortalLink(request,env){
  if(!paddleApiKey(env))return json({error:'billing_not_configured',message:'Billing management is not configured.'},503);
  const user=await getSessionUser(request,env);if(!user)return json({error:'login_required',message:'Please log in again.'},401);
  const body=await readJson(request);const action=String(body?.action||'overview');if(!['overview','cancel','payment_method'].includes(action))return json({error:'invalid_action'},400);
- const sub=await env.KLYPZA_DB.prepare("SELECT provider_subscription_id,status FROM subscriptions WHERE user_id=? AND provider='paddle' AND provider_subscription_id IS NOT NULL ORDER BY CASE WHEN status='active' THEN 2 WHEN status='past_due' THEN 1 ELSE 0 END DESC,updated_at DESC LIMIT 1").bind(user.id).first();
+ const sub=await env.KLYPZA_DB.prepare("SELECT provider_subscription_id,status FROM subscriptions WHERE user_id=? AND provider='paddle' AND provider_subscription_id IS NOT NULL ORDER BY CASE WHEN status='active' THEN 2 WHEN status='past_due' THEN 1 ELSE 0 END DESC,updated_at DESC,current_period_end DESC,id DESC LIMIT 1").bind(user.id).first();
  if(!sub?.provider_subscription_id||!['active','past_due','paused'].includes(String(sub.status||'').toLowerCase()))return json({error:'subscription_not_manageable',message:'No manageable Paddle subscription was found for this account.'},404);
  const base=paddleApiBase(env);const headers={'Authorization':'Bearer '+paddleApiKey(env),'Paddle-Version':'1','Content-Type':'application/json','Accept':'application/json'};
  let sr,sd;try{sr=await fetch(base+'/subscriptions/'+encodeURIComponent(sub.provider_subscription_id),{headers});sd=await sr.json();}catch(err){console.error('PADDLE_SUBSCRIPTION_LOOKUP',String(err));return json({error:'paddle_unavailable',message:'Unable to contact Paddle. Please try again.'},502);}
