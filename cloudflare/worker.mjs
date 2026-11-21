@@ -486,7 +486,7 @@ async function createPaddleCheckout(request,env){
  if(!paddleBillingReady(env))return json({error:'billing_not_configured',message:'Paddle billing is not fully configured for this environment.'},503);
  const user=await getSessionUser(request,env);if(!user)return json({error:'login_required',message:'Please log in before choosing a paid plan.'},401);
  if(Number(user.email_verified)!==1)return json({error:'email_not_verified',message:'Verify your email address before purchasing a subscription.'},403);
- const existing=await env.KLYPZA_DB.prepare("SELECT id,plan,status FROM subscriptions WHERE user_id=? AND provider='paddle' AND status IN ('active','trialing','past_due','paused') ORDER BY updated_at DESC LIMIT 1").bind(user.id).first();
+ const existing=await env.KLYPZA_DB.prepare("SELECT id,plan,status FROM subscriptions WHERE user_id=? AND provider='paddle' AND (status IN ('active','trialing','paused') OR (status='past_due' AND current_period_end>?)) ORDER BY CASE WHEN status IN ('active','trialing') THEN 3 WHEN status='past_due' THEN 2 ELSE 1 END DESC,CASE plan WHEN 'premium' THEN 3 WHEN 'standard' THEN 2 WHEN 'weekly' THEN 1 ELSE 0 END DESC,updated_at DESC LIMIT 1").bind(user.id,new Date().toISOString()).first();
  if(existing)return json({error:'subscription_exists',message:'You already have a paid subscription. Manage or change it from your billing portal to avoid duplicate charges.'},409);
  const body=await readJson(request);const plan=String(body?.plan||'').toLowerCase();
  const mode=paddleEnvironment(env);
