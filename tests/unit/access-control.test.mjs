@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveAccountAccess, planLimits, paddleSubscriptionRowId, selectEligiblePaidSubscription, dashboardPaidSubscription } from '../../cloudflare/worker.mjs';
+import { resolveAccountAccess, planLimits, paddleSubscriptionRowId, selectEligiblePaidSubscription, dashboardPaidSubscription, resolvePaddleSubscriptionPlan, isPaddleEventNewer } from '../../cloudflare/worker.mjs';
 
 const NOW = Date.parse('2026-11-21T08:00:00Z');
 const future = new Date(NOW + 3 * 86400000).toISOString();
@@ -123,4 +123,24 @@ test('eligible Paddle subscription remains visible in dashboard', () => {
   const paid = { plan: 'premium', provider: 'paddle', status: 'active', current_period_end: future };
   const access = resolveAccountAccess(paid, null, NOW);
   assert.equal(dashboardPaidSubscription(access), paid);
+});
+
+test('Paddle subscription plan follows the current subscription price after portal changes', () => {
+  const env = {
+    PADDLE_WEEKLY_PRICE_ID: 'pri_weekly',
+    PADDLE_STANDARD_PRICE_ID: 'pri_standard',
+    PADDLE_PREMIUM_PRICE_ID: 'pri_premium',
+  };
+  assert.equal(resolvePaddleSubscriptionPlan({ items: [{ price: { id: 'pri_premium' } }] }, env, 'weekly'), 'premium');
+  assert.equal(resolvePaddleSubscriptionPlan({ items: [{ price_id: 'pri_standard' }] }, env, 'weekly'), 'standard');
+  assert.equal(resolvePaddleSubscriptionPlan({ items: [{ price: { id: 'unknown' } }] }, env, 'weekly'), 'weekly');
+  assert.equal(resolvePaddleSubscriptionPlan({ items: [] }, env, 'invalid'), null);
+});
+
+test('Paddle webhook event ordering ignores stale and malformed timestamps', () => {
+  assert.equal(isPaddleEventNewer('2026-11-21T10:00:00Z', '2026-11-21T09:00:00Z'), true);
+  assert.equal(isPaddleEventNewer('2026-11-21T09:00:00Z', '2026-11-21T09:00:00Z'), true);
+  assert.equal(isPaddleEventNewer('2026-11-21T08:00:00Z', '2026-11-21T09:00:00Z'), false);
+  assert.equal(isPaddleEventNewer('not-a-date', '2026-11-21T09:00:00Z'), false);
+  assert.equal(isPaddleEventNewer('', null), true);
 });
