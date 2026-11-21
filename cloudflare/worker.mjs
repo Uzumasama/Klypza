@@ -1034,7 +1034,7 @@ async function handleDownloadComplete(request,env){
  return json({ok:true,usedToday:Number(after?.used||0),remaining:Math.max(0,limits.daily-Number(after?.used||0))});
 }
 
-export export function escapeHtml(value){return String(value??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));}
+export function escapeHtml(value){return String(value??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));}
 function expiredPaidHistoryCutoff(subscription,now=Date.now()){
   if(!subscription||String(subscription.provider||'').toLowerCase()!=='paddle')return null;
   const status=String(subscription.status||'').toLowerCase();
