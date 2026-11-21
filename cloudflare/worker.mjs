@@ -981,7 +981,7 @@ async function quotaLimitResponse(user,env,batchId){
  if(batchUsed>=Number(batch.max_videos))return json({error:'batch_limit_reached',message:'This batch has reached its '+batch.max_videos+'-video limit. Start a new batch to continue.',limit:Number(batch.max_videos),used:batchUsed},429);
  return json({error:'quota_unavailable',message:'Klypza could not reserve this download. Please start a new batch and try again.'},429);
 }
-async function createPendingDownload(user,env,platform,sourceUrl,title,batchId){
+export async function createPendingDownload(user,env,platform,sourceUrl,title,batchId){
  const id=crypto.randomUUID(),limits=planLimits(user.plan),now=Date.now(),expires=now+3600000,day=utcDate();
  const sql="INSERT INTO pending_downloads(id,user_id,batch_id,platform,source_url,title,status,expires_at) SELECT ?,?,?,?,?,?,'ready',? WHERE (SELECT COUNT(*) FROM usage_events WHERE user_id=? AND usage_date=?) + (SELECT COUNT(*) FROM pending_downloads WHERE user_id=? AND status IN ('ready','pending','streaming') AND expires_at>?) < ? AND (SELECT COUNT(*) FROM usage_events WHERE user_id=? AND batch_id=?) + (SELECT COUNT(*) FROM pending_downloads WHERE user_id=? AND batch_id=? AND status IN ('ready','pending','streaming') AND expires_at>?) < (SELECT max_videos FROM download_batches WHERE id=? AND user_id=?)";
  const r=await env.KLYPZA_DB.prepare(sql).bind(id,user.id,batchId,platform,sourceUrl,String(title||'').slice(0,200),expires,user.id,day,user.id,now,limits.daily,user.id,batchId,user.id,batchId,now,batchId,user.id).run();return r.meta?.changes===1?id:null;
@@ -1294,8 +1294,13 @@ async function handleDownload(url, env, request) {
     return json({ error: 'profile_not_supported', message: 'This looks like a profile link. Paste a direct video post URL instead.' }, 422);
   }
 
+  // Reserve one quota slot atomically before contacting SaveAPI. This prevents
+  // concurrent requests from both consuming provider calls against the same slot.
+  const reservationId=await createPendingDownload(user,env,platform,parsed.href,'Processing video',batchId);
+  if(!reservationId)return await quotaLimitResponse(user,env,batchId);
+
   // YouTube uses SaveAPI's dedicated info -> create flow.
-  if (platform === 'YouTube') return await handleYouTubeInfo(parsed, env, user, batchId);
+  if (platform === 'YouTube') return await handleYouTubeInfo(parsed, env, user, batchId, reservationId);
 
   const api = new URL('https://api.saveapi.org/v1/download');
   api.searchParams.set('url', parsed.href);
@@ -1310,6 +1315,7 @@ async function handleDownload(url, env, request) {
       signal: AbortSignal.timeout(25000),
     });
   } catch {
+    await cancelPendingDownload(user,env,reservationId);
     return json({ error: 'upstream_timeout', message: 'SaveAPI did not respond. Please try again shortly.' }, 504);
   }
 
@@ -1318,6 +1324,7 @@ async function handleDownload(url, env, request) {
   try { data = JSON.parse(text); } catch { /* bukan JSON */ }
 
   if (!data || typeof data !== 'object') {
+    await cancelPendingDownload(user,env,reservationId);
     return json({ error: 'bad_response', message: 'SaveAPI returned an unreadable response.' }, 502);
   }
   const apiErrorCode = data.error && data.error.code ? String(data.error.code) : '';
@@ -1340,6 +1347,7 @@ async function handleDownload(url, env, request) {
       status = 400;
     }
     const retryAfter = res.headers.get('Retry-After');
+    await cancelPendingDownload(user,env,reservationId);
     return json(
       { error: (apiErrorCode || 'upstream_error').toLowerCase(), message: String(message).slice(0, 300) },
       status,
@@ -1350,9 +1358,11 @@ async function handleDownload(url, env, request) {
   const result = normalize(data);
   result.items = result.items.filter((item) => item.type === 'video');
   if (!result.items.length) {
+    await cancelPendingDownload(user,env,reservationId);
     return json({ error: 'no_video', message: 'No supported video was found. Make sure the post is public and contains a supported video.' }, 422);
   }
 
+  await updatePendingDownloadTitle(user,env,reservationId,result.title);
   const secret = env.SAVEAPI_KEY;
   const expires = Date.now() + 60 * 60 * 1000;
   const items = [];
@@ -1361,7 +1371,7 @@ async function handleDownload(url, env, request) {
     n += 1;
     const ext = guessExt(it);
     const name = `${platform}_${slug(result.title) || 'media'}_${n}.${ext}`;
-    const completionId=await createPendingDownload(user,env,platform,parsed.href,result.title,batchId);if(!completionId){for(const item of items)if(item.completionId)await env.KLYPZA_DB.prepare("UPDATE pending_downloads SET status='cancelled' WHERE id=? AND user_id=? AND status IN ('ready','pending')").bind(item.completionId,user.id).run();return await quotaLimitResponse(user,env,batchId);}
+    const completionId=n===1?reservationId:await createPendingDownload(user,env,platform,parsed.href,result.title,batchId);if(!completionId){await cancelPendingDownload(user,env,reservationId);for(const item of items)if(item.completionId&&item.completionId!==reservationId)await cancelPendingDownload(user,env,item.completionId);return await quotaLimitResponse(user,env,batchId);}
     const sig = await hmac(secret, `${it.url}\n${name}\n${expires}\n\n${completionId}`);
     const file = `/api/file?u=${encodeURIComponent(it.url)}&n=${encodeURIComponent(name)}&e=${expires}&d=${completionId}&s=${sig}`;
     items.push({type:it.type,quality:it.quality,watermark:it.watermark,ext,name,thumb:it.type==='image'?it.url:result.thumb,file,completionId});
@@ -1369,7 +1379,7 @@ async function handleDownload(url, env, request) {
   const used=Number((await env.KLYPZA_DB.prepare('SELECT COUNT(*) AS used FROM usage_events WHERE user_id=? AND usage_date=?').bind(user.id,utcDate()).first())?.used||0);return json({platform,title:result.title,author:result.author,items,credits_remaining:Math.max(0,planLimits(user.plan).daily-used)});
 }
 
-async function handleYouTubeInfo(parsed, env, user, batchId) {
+async function handleYouTubeInfo(parsed, env, user, batchId, reservationId) {
   const api = new URL('https://api.saveapi.org/v1/youtube/info');
   api.searchParams.set('url', parsed.href);
   let res;
@@ -1379,17 +1389,20 @@ async function handleYouTubeInfo(parsed, env, user, batchId) {
       signal: AbortSignal.timeout(25000),
     });
   } catch {
+    await cancelPendingDownload(user,env,reservationId);
     return json({ error: 'upstream_timeout', message: 'SaveAPI did not respond. Please try again shortly.' }, 504);
   }
 
   let data;
   try { data = await res.json(); } catch {
+    await cancelPendingDownload(user,env,reservationId);
     return json({ error: 'bad_response', message: 'SaveAPI returned an unreadable response.' }, 502);
   }
   if (!data || typeof data !== 'object') {
+    await cancelPendingDownload(user,env,reservationId);
     return json({ error: 'bad_response', message: 'SaveAPI returned an unreadable response.' }, 502);
   }
-  if (!res.ok || data.success === false) return saveApiError(data, res.status, res.headers.get('Retry-After'));
+  if (!res.ok || data.success === false) { await cancelPendingDownload(user,env,reservationId); return saveApiError(data, res.status, res.headers.get('Retry-After')); }
 
   const root = data.data && typeof data.data === 'object' ? data.data : data;
   const formats = Array.isArray(root.formats) ? root.formats : (Array.isArray(data.formats) ? data.formats : []);
@@ -1403,6 +1416,7 @@ async function handleYouTubeInfo(parsed, env, user, batchId) {
     return /^(144|240|360|480|720|1080)p$/i.test(q) || (type === 'video' && /p$/i.test(q));
   });
   if (!videoFormats.length) {
+    await cancelPendingDownload(user,env,reservationId);
     return json({ error: 'no_video', message: 'SaveAPI did not return downloadable video qualities for this YouTube link.' }, 422);
   }
 
@@ -1417,11 +1431,11 @@ async function handleYouTubeInfo(parsed, env, user, batchId) {
     seen.add(quality);
     eligibleFormats.push({ format, quality });
   }
-  if (!eligibleFormats.length) return json({ error: 'no_video', message: 'No supported YouTube video qualities were found.' }, 422);
+  if (!eligibleFormats.length) { await cancelPendingDownload(user,env,reservationId); return json({ error: 'no_video', message: 'No supported YouTube video qualities were found.' }, 422); }
 
-  // All quality choices for one YouTube video share one reservation and one credit.
-  const completionId = await createPendingDownload(user,env,'YouTube',parsed.href,title,batchId);
-  if (!completionId) return await quotaLimitResponse(user,env,batchId);
+  // All quality choices for one YouTube video share the pre-provider reservation and one credit.
+  await updatePendingDownloadTitle(user,env,reservationId,title);
+  const completionId = reservationId;
 
   for (const { format, quality } of eligibleFormats) {
     const name = `YouTube_${slug(title) || 'video'}_${quality}.mp4`;
