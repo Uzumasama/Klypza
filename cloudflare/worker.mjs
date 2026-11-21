@@ -1057,6 +1057,18 @@ async function purgeExpiredPaidHistory(env){
   }
 }
 
+async function purgeExpiredOperationalRows(env){
+  if(!env.KLYPZA_DB)return;
+  const now=new Date().toISOString(),nowMs=Date.now();
+  await env.KLYPZA_DB.batch([
+    env.KLYPZA_DB.prepare('DELETE FROM sessions WHERE expires_at<=?').bind(now),
+    env.KLYPZA_DB.prepare('DELETE FROM email_verification_tokens WHERE expires_at<=?').bind(now),
+    env.KLYPZA_DB.prepare('DELETE FROM password_reset_tokens WHERE expires_at<=?').bind(now),
+    env.KLYPZA_DB.prepare('DELETE FROM pending_downloads WHERE CAST(expires_at AS INTEGER)<=?').bind(nowMs),
+    env.KLYPZA_DB.prepare("DELETE FROM auth_login_attempts WHERE datetime(window_started_at)<=datetime(?,'-1 day')").bind(now)
+  ]);
+}
+
 async function notifyExpiredTrials(env){
   if(!env.KLYPZA_DB||!env.RESEND_API_KEY)return;
   await env.KLYPZA_DB.prepare("CREATE TABLE IF NOT EXISTS trial_notifications (user_id TEXT NOT NULL, notification_type TEXT NOT NULL, sent_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(user_id,notification_type))").run();
@@ -1140,7 +1152,7 @@ export default {
   }
   return json({ error: 'not_found' }, 404);
   },
-  async scheduled(controller,env,ctx){ctx.waitUntil(Promise.all([notifyExpiredTrials(env),purgeExpiredPaidHistory(env)]));},
+  async scheduled(controller,env,ctx){ctx.waitUntil(Promise.all([notifyExpiredTrials(env),purgeExpiredPaidHistory(env),purgeExpiredOperationalRows(env)]));},
 };
 
 function securityHeaders(extra = {}) { return { 'x-content-type-options':'nosniff', 'x-frame-options':'DENY', 'referrer-policy':'strict-origin-when-cross-origin', 'permissions-policy':'camera=(), microphone=(), geolocation=()', 'strict-transport-security':'max-age=31536000', ...extra }; }
