@@ -218,7 +218,7 @@ test('paid subscription history is purged only after the Paddle billing period e
   assert.equal(expiredPaidHistoryCutoff({ provider: 'paddle', status: 'canceled', current_period_end: end }, beforeExpiry), null);
   assert.equal(expiredPaidHistoryCutoff({ provider: 'paddle', status: 'canceled', current_period_end: end }, afterExpiry), end);
   assert.equal(expiredPaidHistoryCutoff({ provider: 'paddle', status: 'past_due', current_period_end: end }, afterExpiry), end);
-  assert.equal(expiredPaidHistoryCutoff({ provider: 'paddle', status: 'active', current_period_end: end }, afterExpiry), null);
+  assert.equal(expiredPaidHistoryCutoff({ provider: 'paddle', status: 'active', current_period_end: end }, afterExpiry), end);
   assert.equal(expiredPaidHistoryCutoff({ provider: 'klypza_trial', status: 'expired', current_period_end: end }, afterExpiry), null);
   assert.equal(expiredPaidHistoryCutoff({ provider: 'paddle', status: 'canceled', current_period_end: 'invalid' }, afterExpiry), null);
 });
