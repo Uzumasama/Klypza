@@ -1729,11 +1729,20 @@ async function fetchSafeMedia(initialUrl) {
   throw new Error('Too many media redirects');
 }
 
-function isPrivateHost(h) {
-  h = h.toLowerCase();
-  if (h === 'localhost' || h.endsWith('.local') || h.endsWith('.internal')) return true;
+export function isPrivateHost(h) {
+  // Normalize DNS absolute names so a trailing root dot cannot bypass
+  // localhost and private-suffix checks (for example, localhost.).
+  h = String(h || '').toLowerCase().replace(/\.+$/, '');
+  if (!h) return true;
+  if (h === 'localhost' || h.endsWith('.localhost') ||
+      h === 'local' || h.endsWith('.local') ||
+      h === 'internal' || h.endsWith('.internal') ||
+      h === 'home.arpa' || h.endsWith('.home.arpa')) return true;
+  // URL canonicalizes alternate IPv4 spellings (integer, octal, hex and
+  // shortened forms) before hostname reaches this check. Reject all literal
+  // IPv4 and IPv6 hosts conservatively; provider URLs should use DNS names.
   if (/^\d+\.\d+\.\d+\.\d+$/.test(h)) return true;
-  if (h.includes(':')) return true;
+  if (h.includes(':') || (h.startsWith('[') && h.endsWith(']'))) return true;
   return false;
 }
 
