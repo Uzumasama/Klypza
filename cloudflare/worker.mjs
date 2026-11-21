@@ -489,7 +489,6 @@ export function isValidPaddleOrderTransaction(order,transaction,env){
   if(priceId!==expectedPrice||Number(item.quantity)!==1)return false;
   const totals=transaction.details?.totals||{};
   return String(transaction.currency_code||'').toUpperCase()==='USD'
-    &&String(totals.currency_code||'').toUpperCase()==='USD'
     &&/^\d+$/.test(String(totals.subtotal||''))
     &&Number(totals.subtotal)===Number(order.amount_minor);
 }
