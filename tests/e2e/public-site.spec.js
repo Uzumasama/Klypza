@@ -10,6 +10,36 @@ test.describe('Klypza public website', () => {
     await expect(page.locator('body')).not.toContainText(/internal server error|worker threw exception/i);
   });
 
+  test('anonymous homepage includes the approved Monetag In-Page Push tag without banner placeholders', async ({ page }) => {
+    const response = await page.goto('/');
+    expect(response).not.toBeNull();
+    expect(response.status()).toBeLessThan(400);
+
+    const headScripts = await page.locator('head script').evaluateAll(nodes =>
+      nodes.map(node => node.textContent || '').join('\\n')
+    );
+    expect(headScripts).toContain('12312106');
+    expect(headScripts).toContain('https://nap5k.com/tag.min.js');
+
+    await expect(page.locator('body')).not.toContainText('Ad placement for Free accounts');
+    await expect(page.locator('body')).not.toContainText('Support Klypza — ad placement');
+  });
+
+  test('robots.txt and sitemap.xml expose the intended public pages', async ({ request }) => {
+    const robots = await request.get('/robots.txt');
+    expect(robots.status()).toBe(200);
+    const robotsText = await robots.text();
+    expect(robotsText).toContain('User-agent: *');
+    expect(robotsText).toContain('Sitemap: https://klypza.web.id/sitemap.xml');
+
+    const sitemap = await request.get('/sitemap.xml');
+    expect(sitemap.status()).toBe(200);
+    const sitemapText = await sitemap.text();
+    for (const path of ['/', '/plans', '/about', '/contact', '/privacy-policy', '/terms', '/copyright']) {
+      expect(sitemapText).toContain('https://klypza.web.id' + path);
+    }
+  });
+
   test('homepage exposes navigation and legal information links', async ({ page }) => {
     await page.goto('/');
     const links = page.locator('a[href]');
