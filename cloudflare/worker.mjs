@@ -464,10 +464,15 @@ async function createPaddleCheckout(request,env){
  const catalog={weekly:{priceId:String(env.PADDLE_WEEKLY_PRICE_ID||''),amount:100},standard:{priceId:String(env.PADDLE_STANDARD_PRICE_ID||''),amount:599},premium:{priceId:String(env.PADDLE_PREMIUM_PRICE_ID||''),amount:999}};
  const selected=catalog[plan];if(!selected)return json({error:'invalid_plan',message:'Choose Weekly, Standard or Premium.'},400);
  if(!selected.priceId)return json({error:'billing_not_configured',message:'The Paddle price ID for this plan is not configured yet.'},503);
- if(plan==='weekly'){
-   let priceResponse,pricePayload;try{priceResponse=await fetch(paddleApiBase(env)+'/prices/'+encodeURIComponent(selected.priceId),{headers:{'Authorization':'Bearer '+paddleApiKey(env),'Paddle-Version':'1','Accept':'application/json'}});pricePayload=await priceResponse.json();}catch(err){console.error('PADDLE_WEEKLY_PRICE_CHECK',String(err));return json({error:'price_validation_unavailable',message:'Klypza could not verify the Weekly billing price. Please try again.'},502);}
+ {
+   let priceResponse,pricePayload;try{priceResponse=await fetch(paddleApiBase(env)+'/prices/'+encodeURIComponent(selected.priceId),{headers:{'Authorization':'Bearer '+paddleApiKey(env),'Paddle-Version':'1','Accept':'application/json'}});pricePayload=await priceResponse.json();}catch(err){console.error('PADDLE_PRICE_CHECK',plan,String(err));return json({error:'price_validation_unavailable',message:'Klypza could not verify this plan price. Please try again.'},502);}
    const price=pricePayload?.data||{},cycle=price.billing_cycle||{},unit=price.unit_price||{};
-   if(!priceResponse.ok||cycle.interval!=='week'||Number(cycle.frequency)!==1||String(unit.amount)!=='100'||String(unit.currency_code||'').toUpperCase()!=='USD')return json({error:'weekly_price_mismatch',message:'The configured Paddle Weekly price must be a recurring USD $1 price billed every week.'},503);
+   const expectedInterval=plan==='weekly'?'week':'month';
+   const expectedAmount=String(selected.amount);
+   if(!priceResponse.ok||cycle.interval!==expectedInterval||Number(cycle.frequency)!==1||String(unit.amount)!==expectedAmount||String(unit.currency_code||'').toUpperCase()!=='USD'){
+     console.error('PADDLE_PRICE_MISMATCH',plan,{interval:cycle.interval,frequency:cycle.frequency,amount:String(unit.amount||''),currency:String(unit.currency_code||'')});
+     return json({error:'price_mismatch',message:'The configured Paddle price does not match the selected Klypza plan. Checkout is paused to prevent an incorrect charge.'},503);
+   }
  }
  const orderId=crypto.randomUUID();
  await env.KLYPZA_DB.prepare("INSERT INTO payment_orders(id,user_id,plan,amount_minor,currency,status,provider) VALUES(?,?,?,?,'USD','pending','paddle')").bind(orderId,user.id,plan,selected.amount).run();
