@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveAccountAccess, planLimits } from '../../cloudflare/worker.mjs';
+import { resolveAccountAccess, planLimits, paddleSubscriptionRowId } from '../../cloudflare/worker.mjs';
 
 const NOW = Date.parse('2026-11-21T08:00:00Z');
 const future = new Date(NOW + 3 * 86400000).toISOString();
@@ -68,4 +68,13 @@ test('approved plan limits remain distinct across Trial and paid tiers', () => {
   assert.deepEqual({daily:planLimits('weekly').daily,batch:planLimits('weekly').batch},{daily:25,batch:5});
   assert.deepEqual({daily:planLimits('standard').daily,batch:planLimits('standard').batch},{daily:60,batch:15});
   assert.deepEqual({daily:planLimits('premium').daily,batch:planLimits('premium').batch},{daily:100,batch:25});
+});
+
+
+test('Paddle webhook races converge on one deterministic subscription row ID', () => {
+  const paddleId = 'sub_test_123';
+  assert.equal(paddleSubscriptionRowId(null, paddleId), paddleId);
+  assert.equal(paddleSubscriptionRowId(undefined, paddleId), paddleId);
+  assert.equal(paddleSubscriptionRowId('existing-row', paddleId), 'existing-row');
+  assert.equal(paddleSubscriptionRowId(null, ''), null);
 });
