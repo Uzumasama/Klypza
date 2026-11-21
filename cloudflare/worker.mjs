@@ -924,6 +924,10 @@ async function activatePendingDownload(user,env,id){
  return Number(r.meta?.changes||0)===1;
 }
 
+async function cancelPendingDownload(user,env,id){
+ await env.KLYPZA_DB.prepare("UPDATE pending_downloads SET status='cancelled' WHERE id=? AND user_id=? AND status='pending'").bind(id,user.id).run();
+}
+
 export function finalizeOnStreamCompletion(body,onComplete,onCancel=async()=>{}) {
  const reader=body.getReader();
  let settled=false;
@@ -932,14 +936,17 @@ export function finalizeOnStreamCompletion(body,onComplete,onCancel=async()=>{})
    try{
     const part=await reader.read();
     if(part.done){
-     settled=true;
      const completed=await onComplete();
      if(completed===false)throw new Error('Download could not be finalized');
+     settled=true;
      controller.close();
      return;
     }
     controller.enqueue(part.value);
-   }catch(error){settled=true;controller.error(error);}
+   }catch(error){
+    if(!settled){settled=true;try{await onCancel(error);}catch{}}
+    controller.error(error);
+   }
   },
   async cancel(reason){
    if(settled)return;
@@ -1414,7 +1421,7 @@ async function handleFile(url, env, request) {
   const completedBody=finalizeOnStreamCompletion(
     up.body,
     async()=>consumePendingDownload(user,env,downloadId),
-    async()=>{await env.KLYPZA_DB.prepare("UPDATE pending_downloads SET status='cancelled' WHERE id=? AND user_id=? AND status='pending'").bind(downloadId,user.id).run();},
+    async()=>cancelPendingDownload(user,env,downloadId),
   );
   return new Response(completedBody, { status: 200, headers });
 }
