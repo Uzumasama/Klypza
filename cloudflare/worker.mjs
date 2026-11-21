@@ -1715,11 +1715,14 @@ function safeEqual(a, b) {
 export async function fetchSafeMedia(initialUrl) {
   let current = new URL(initialUrl);
   const headers = { 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36' };
+  // Share one deadline across the complete redirect chain so each hop cannot
+  // reset the upstream timeout and extend a single download request indefinitely.
+  const signal = AbortSignal.timeout(25000);
   for (let i = 0; i < 6; i++) {
     if (!['https:', 'http:'].includes(current.protocol) || current.username || current.password || isPrivateHost(current.hostname)) {
       throw new Error('Blocked unsafe media URL');
     }
-    const response = await fetch(current.href, { headers, redirect: 'manual', signal: AbortSignal.timeout(25000) });
+    const response = await fetch(current.href, { headers, redirect: 'manual', signal });
     if (![301, 302, 303, 307, 308].includes(response.status)) return response;
     const location = response.headers.get('location');
     if (!location) return response;
