@@ -1035,7 +1035,7 @@ async function handleDownloadComplete(request,env){
 }
 
 export function escapeHtml(value){return String(value??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));}
-function expiredPaidHistoryCutoff(subscription,now=Date.now()){
+export function expiredPaidHistoryCutoff(subscription,now=Date.now()){
   if(!subscription||String(subscription.provider||'').toLowerCase()!=='paddle')return null;
   const status=String(subscription.status||'').toLowerCase();
   if(!['active','canceled','cancelled','paused','past_due','expired','ended','inactive'].includes(status))return null;
