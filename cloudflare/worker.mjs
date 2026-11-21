@@ -1063,7 +1063,8 @@ async function purgeExpiredPaidHistory(env){
     await env.KLYPZA_DB.batch([
       env.KLYPZA_DB.prepare('DELETE FROM downloads WHERE user_id=? AND datetime(created_at)<=datetime(?)').bind(row.user_id,cutoff),
       env.KLYPZA_DB.prepare('DELETE FROM credit_transactions WHERE user_id=? AND datetime(created_at)<=datetime(?)').bind(row.user_id,cutoff),
-      env.KLYPZA_DB.prepare('DELETE FROM usage_events WHERE user_id=? AND usage_date<=date(?)').bind(row.user_id,cutoff)
+      env.KLYPZA_DB.prepare('DELETE FROM usage_events WHERE user_id=? AND usage_date<=date(?)').bind(row.user_id,cutoff),
+      env.KLYPZA_DB.prepare('DELETE FROM download_batches WHERE user_id=? AND datetime(created_at)<=datetime(?) AND NOT EXISTS(SELECT 1 FROM pending_downloads p WHERE p.batch_id=download_batches.id) AND NOT EXISTS(SELECT 1 FROM usage_events u WHERE u.batch_id=download_batches.id)').bind(row.user_id,cutoff)
     ]);
   }
 }
