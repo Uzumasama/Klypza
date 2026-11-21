@@ -18,6 +18,17 @@ test.describe('Klypza public website', () => {
     expect(scripts.join(' ')).not.toMatch(/monetag|nap5k|adsbygoogle|adsterra/i);
     await expect(page.locator('body')).not.toContainText(/Ad placement for Free accounts|Support Klypza — ad placement/i);
   });
+  test('privacy policy reflects the no-advertising service and essential cookies only', async ({ page }) => {
+    const response = await page.goto('/privacy-policy');
+    expect(response).not.toBeNull();
+    expect(response.status()).toBeLessThan(400);
+    await expect(page.locator('h1')).toHaveText('Privacy Policy');
+    const body = await page.locator('body').innerText();
+    expect(body).not.toMatch(/advertis|\\bads?\\b|monetag/i);
+    expect(body).toMatch(/essential cookies/i);
+    expect(body).toMatch(/keep you signed in/i);
+  });
+
   test('robots.txt and sitemap.xml expose the intended public pages', async ({ request }) => {
     const robots = await request.get('/robots.txt');
     expect(robots.status()).toBe(200);
