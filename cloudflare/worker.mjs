@@ -96,11 +96,11 @@ function appPageHtml(path) {
         var activeSub = sub && String(sub.status || '').toLowerCase() === 'active' && sub.provider === 'paddle' ? sub : null;
         var trialActive = !!(data.trial && data.trial.status === 'active' && access.canDownload === true);
         var canDownload = access.canDownload === true;
-        var dailyLimit = canDownload ? (trialActive ? 25 : Number(quota.dailyLimit)) : 0;
-        var plan = trialActive ? 'weekly' : String((activeSub && activeSub.plan) || data.plan || user.plan || (dailyLimit >= 100 ? 'premium' : dailyLimit >= 60 ? 'standard' : dailyLimit >= 25 ? 'weekly' : 'free')).toLowerCase();
-        if (!['free','weekly','standard','premium'].includes(plan)) plan = dailyLimit >= 100 ? 'premium' : dailyLimit >= 60 ? 'standard' : dailyLimit >= 25 ? 'weekly' : 'free';
-        if (!Number.isFinite(dailyLimit) || dailyLimit < 0) dailyLimit = canDownload ? (plan === 'premium' ? 100 : plan === 'standard' ? 60 : plan === 'weekly' ? 25 : 0) : 0;
-        var maxBatch = canDownload ? (quota.maxBatch !== undefined ? Number(quota.maxBatch) : (plan === 'premium' ? 25 : plan === 'standard' ? 15 : plan === 'weekly' ? 5 : 0)) : 0;
+        var dailyLimit = canDownload ? (trialActive ? 10 : Number(quota.dailyLimit)) : 0;
+        var plan = trialActive ? 'trial' : String((activeSub && activeSub.plan) || data.plan || user.plan || (dailyLimit >= 100 ? 'premium' : dailyLimit >= 60 ? 'standard' : dailyLimit >= 25 ? 'weekly' : 'free')).toLowerCase();
+        if (!['free','trial','weekly','standard','premium'].includes(plan)) plan = trialActive ? 'trial' : dailyLimit >= 100 ? 'premium' : dailyLimit >= 60 ? 'standard' : dailyLimit >= 25 ? 'weekly' : 'free';
+        if (!Number.isFinite(dailyLimit) || dailyLimit < 0) dailyLimit = canDownload ? (plan === 'premium' ? 100 : plan === 'standard' ? 60 : plan === 'weekly' ? 25 : plan === 'trial' ? 10 : 0) : 0;
+        var maxBatch = canDownload ? (quota.maxBatch !== undefined ? Number(quota.maxBatch) : (plan === 'premium' ? 25 : plan === 'standard' ? 15 : (plan === 'weekly' || plan === 'trial') ? 5 : 0)) : 0;
         if (!Number.isFinite(maxBatch) || maxBatch < 0) maxBatch = 0;
         var usedToday = Number(quota.usedToday);
         if (!Number.isFinite(usedToday) || usedToday < 0) usedToday = 0;
@@ -120,7 +120,7 @@ function appPageHtml(path) {
         setText('plansCurrentLevel', plan.toUpperCase());
         setText('dashPlan', plan.toUpperCase());
         setText('dashBatchText', 'Batch limit: ' + maxBatch + ' videos');
-        setText('dashSubStatus', activeSub ? 'Subscription active' : 'No active paid subscription.');
+        setText('dashSubStatus', activeSub ? 'Subscription active' : trialActive ? 'Free trial active' : 'No active paid subscription.');
         setText('profileStatus', user.emailVerified === true || user.email_verified === 1 ? 'Verified' : 'Email not verified');
         var joined = user.createdAt || user.created_at;
         setText('profileJoined', joined ? new Date(joined).toLocaleDateString() : 'Not available');
@@ -128,7 +128,7 @@ function appPageHtml(path) {
         setText('dashQuotaText', remaining + ' downloads remaining · ' + usedToday + ' used today · Resets at 00:00 UTC.');
         setText('membershipDaily', dailyLimit + ' videos per day');
         setText('membershipBatch', maxBatch + ' videos per batch');
-        setText('membershipStatus', activeSub ? 'Active' : 'No paid subscription');
+        setText('membershipStatus', activeSub ? 'Active' : trialActive ? 'Free trial active' : 'No paid subscription');
         setText('membershipEnd', activeSub && activeSub.current_period_end ? new Date(activeSub.current_period_end).toLocaleDateString() : 'Not applicable');
       })
       .catch(function (error) {
