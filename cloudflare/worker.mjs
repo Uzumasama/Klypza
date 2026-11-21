@@ -830,6 +830,8 @@ async function logoutAccount(request,env){
   return json({ok:true},200,{'set-cookie':SESSION_COOKIE+'=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0'});
 }
 async function changeAccountPassword(request,env){
+  const origin=request.headers.get('Origin');
+  if(origin&&origin!==new URL(request.url).origin)return json({message:'Request origin rejected.'},403);
   const user=await getSessionUser(request,env); if(!user)return json({message:'Please log in again.'},401);
   const data=await readJson(request),current=String(data?.currentPassword||''),next=String(data?.newPassword||'');
   if(!current||!next)return json({message:'Enter your current and new password.'},400);
