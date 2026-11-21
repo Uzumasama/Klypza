@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveAccountAccess, planLimits, paddleSubscriptionRowId, selectEligiblePaidSubscription, dashboardPaidSubscription, resolvePaddleSubscriptionPlan, isPaddleEventNewer, isValidPaddleTimestamp } from '../../cloudflare/worker.mjs';
+import { resolveAccountAccess, planLimits, paddleSubscriptionRowId, selectEligiblePaidSubscription, dashboardPaidSubscription, resolvePaddleSubscriptionPlan, isPaddleEventNewer, isValidPaddleTimestamp, isValidPaddleOrderTransaction } from '../../cloudflare/worker.mjs';
 
 const NOW = Date.parse('2026-11-21T08:00:00Z');
 const future = new Date(NOW + 3 * 86400000).toISOString();
@@ -179,4 +179,24 @@ test('Paddle webhook timestamp accepts numeric Unix timestamps only', () => {
   assert.equal(isValidPaddleTimestamp('abc'), false);
   assert.equal(isValidPaddleTimestamp('\\\\d123'), false);
   assert.equal(isValidPaddleTimestamp('1234567890123'), false);
+});
+
+test('Paddle completed transaction must match the exact pending Klypza order', () => {
+  const env = { PADDLE_WEEKLY_PRICE_ID: 'pri_weekly', PADDLE_STANDARD_PRICE_ID: 'pri_standard', PADDLE_PREMIUM_PRICE_ID: 'pri_premium' };
+  const order = { id: 'order-1', user_id: 'user-1', plan: 'standard', amount_minor: 599, currency: 'USD', status: 'pending', provider_reference: 'txn-1' };
+  const transaction = {
+    id: 'txn-1', status: 'completed', currency_code: 'USD',
+    custom_data: { klypza_order_id: 'order-1', klypza_user_id: 'user-1', klypza_plan: 'standard' },
+    items: [{ price: { id: 'pri_standard' }, quantity: 1 }],
+    details: { totals: { currency_code: 'USD', subtotal: '599', grand_total: '599' } },
+  };
+  assert.equal(isValidPaddleOrderTransaction(order, transaction, env), true);
+  assert.equal(isValidPaddleOrderTransaction(order, { ...transaction, id: 'txn-other' }, env), false);
+  assert.equal(isValidPaddleOrderTransaction(order, { ...transaction, custom_data: { ...transaction.custom_data, klypza_user_id: 'user-other' } }, env), false);
+  assert.equal(isValidPaddleOrderTransaction(order, { ...transaction, custom_data: { ...transaction.custom_data, klypza_plan: 'premium' } }, env), false);
+  assert.equal(isValidPaddleOrderTransaction(order, { ...transaction, items: [{ price: { id: 'pri_premium' }, quantity: 1 }] }, env), false);
+  assert.equal(isValidPaddleOrderTransaction(order, { ...transaction, items: [{ price: { id: 'pri_standard' }, quantity: 2 }] }, env), false);
+  assert.equal(isValidPaddleOrderTransaction(order, { ...transaction, details: { totals: { currency_code: 'USD', subtotal: '999' } } }, env), false);
+  assert.equal(isValidPaddleOrderTransaction(order, { ...transaction, currency_code: 'EUR' }, env), false);
+  assert.equal(isValidPaddleOrderTransaction(order, { ...transaction, status: 'paid' }, env), false);
 });
