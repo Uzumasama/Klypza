@@ -896,7 +896,7 @@ export default {
         if (adPlan === 'free') {
           // Keep the tag in <head> for Monetag Installation Check and exclude it from Cloudflare Rocket Loader.
           const monetagTag = '<script data-cfasync="false">(function(s){s.dataset.zone="12312106";s.src="https://nap5k.com/tag.min.js";s.async=true;s.setAttribute("data-cfasync","false");})(document.head.appendChild(document.createElement("script")))</script>';
-          pageHtml = pageHtml.replace('<head>', '<head>\\n' + monetagTag);
+          pageHtml = pageHtml.replace('<head>', '<head>\n' + monetagTag);
         }
       }
       return new Response(pageHtml,{headers:securityHeaders({'content-type':'text/html; charset=utf-8','cache-control':'no-cache'})});
