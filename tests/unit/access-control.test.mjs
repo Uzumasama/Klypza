@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveAccountAccess, planLimits, paddleSubscriptionRowId, selectEligiblePaidSubscription, dashboardPaidSubscription, resolvePaddleSubscriptionPlan, isPaddleEventNewer, isValidPaddleTimestamp, isValidPaddleOrderTransaction, canActivatePaddleOrder } from '../../cloudflare/worker.mjs';
+import { resolveAccountAccess, planLimits, paddleSubscriptionRowId, selectEligiblePaidSubscription, dashboardPaidSubscription, resolvePaddleSubscriptionPlan, isPaddleEventNewer, isValidPaddleTimestamp, isValidPaddleOrderTransaction, canActivatePaddleOrder, expiredPaidHistoryCutoff } from '../../cloudflare/worker.mjs';
 
 const NOW = Date.parse('2026-11-21T08:00:00Z');
 const future = new Date(NOW + 3 * 86400000).toISOString();
@@ -208,4 +208,17 @@ test('Paddle completed transaction must match the exact pending Klypza order', (
   assert.equal(isValidPaddleOrderTransaction(order, { ...transaction, details: { totals: { currency_code: 'USD', subtotal: '999' } } }, env), false);
   assert.equal(isValidPaddleOrderTransaction(order, { ...transaction, currency_code: 'EUR' }, env), false);
   assert.equal(isValidPaddleOrderTransaction(order, { ...transaction, status: 'paid' }, env), false);
+});
+
+
+test('paid subscription history is purged only after the Paddle billing period ends', () => {
+  const end = '2026-11-21T08:00:00.000Z';
+  const beforeExpiry = Date.parse(end) - 1;
+  const afterExpiry = Date.parse(end) + 1;
+  assert.equal(expiredPaidHistoryCutoff({ provider: 'paddle', status: 'canceled', current_period_end: end }, beforeExpiry), null);
+  assert.equal(expiredPaidHistoryCutoff({ provider: 'paddle', status: 'canceled', current_period_end: end }, afterExpiry), end);
+  assert.equal(expiredPaidHistoryCutoff({ provider: 'paddle', status: 'past_due', current_period_end: end }, afterExpiry), end);
+  assert.equal(expiredPaidHistoryCutoff({ provider: 'paddle', status: 'active', current_period_end: end }, afterExpiry), null);
+  assert.equal(expiredPaidHistoryCutoff({ provider: 'klypza_trial', status: 'expired', current_period_end: end }, afterExpiry), null);
+  assert.equal(expiredPaidHistoryCutoff({ provider: 'paddle', status: 'canceled', current_period_end: 'invalid' }, afterExpiry), null);
 });
