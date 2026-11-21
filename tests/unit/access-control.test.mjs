@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveAccountAccess, planLimits, paddleSubscriptionRowId, selectEligiblePaidSubscription, dashboardPaidSubscription, resolvePaddleSubscriptionPlan, isPaddleEventNewer, isValidPaddleTimestamp, isValidPaddleOrderTransaction } from '../../cloudflare/worker.mjs';
+import { resolveAccountAccess, planLimits, paddleSubscriptionRowId, selectEligiblePaidSubscription, dashboardPaidSubscription, resolvePaddleSubscriptionPlan, isPaddleEventNewer, isValidPaddleTimestamp, isValidPaddleOrderTransaction, canActivatePaddleOrder } from '../../cloudflare/worker.mjs';
 
 const NOW = Date.parse('2026-11-21T08:00:00Z');
 const future = new Date(NOW + 3 * 86400000).toISOString();
@@ -191,6 +191,10 @@ test('Paddle completed transaction must match the exact pending Klypza order', (
     details: { totals: { subtotal: '599', grand_total: '599' } },
   };
   assert.equal(isValidPaddleOrderTransaction(order, transaction, env), true);
+  assert.equal(canActivatePaddleOrder(order, transaction, env), true);
+  assert.equal(canActivatePaddleOrder({ ...order, status: 'completed' }, transaction, env), false);
+  assert.equal(canActivatePaddleOrder({ ...order, currency: 'EUR' }, transaction, env), false);
+  assert.equal(canActivatePaddleOrder({ ...order, amount_minor: 100 }, transaction, env), false);
   assert.equal(isValidPaddleOrderTransaction(order, { ...transaction, id: 'txn-other' }, env), false);
   assert.equal(isValidPaddleOrderTransaction(order, { ...transaction, custom_data: { ...transaction.custom_data, klypza_user_id: 'user-other' } }, env), false);
   assert.equal(isValidPaddleOrderTransaction(order, { ...transaction, custom_data: { ...transaction.custom_data, klypza_plan: 'premium' } }, env), false);
