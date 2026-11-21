@@ -1034,7 +1034,8 @@ async function handleDownloadComplete(request,env){
  return json({ok:true,usedToday:Number(after?.used||0),remaining:Math.max(0,limits.daily-Number(after?.used||0))});
 }
 
-export function expiredPaidHistoryCutoff(subscription,now=Date.now()){
+export export function escapeHtml(value){return String(value??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));}
+function expiredPaidHistoryCutoff(subscription,now=Date.now()){
   if(!subscription||String(subscription.provider||'').toLowerCase()!=='paddle')return null;
   const status=String(subscription.status||'').toLowerCase();
   if(!['active','canceled','cancelled','paused','past_due','expired','ended','inactive'].includes(status))return null;
@@ -1076,12 +1077,13 @@ async function notifyExpiredTrials(env){
   const now=new Date().toISOString();
   const rows=await env.KLYPZA_DB.prepare("SELECT s.id AS trial_id,s.user_id,u.email,u.display_name FROM subscriptions s JOIN users u ON u.id=s.user_id LEFT JOIN subscriptions p ON p.user_id=s.user_id AND p.provider='paddle' AND p.status IN ('active','trialing','past_due') AND (p.status!='past_due' OR p.current_period_end>?) LEFT JOIN trial_notifications n ON n.user_id=s.user_id AND n.notification_type='trial_expired' WHERE s.provider='klypza_trial' AND s.status='trialing' AND s.current_period_end<=? AND p.id IS NULL AND n.user_id IS NULL ORDER BY s.current_period_end ASC LIMIT 100").bind(now,now).all();
   for(const user of rows.results||[]){
-    const name='there';
+    const name=String(user.display_name||'there').trim().slice(0,80)||'there';
+    const safeName=escapeHtml(name);
     const link='https://klypza.web.id/plans';
     try{
       const response=await fetch('https://api.resend.com/emails',{method:'POST',headers:{authorization:'Bearer '+env.RESEND_API_KEY,'content-type':'application/json'},body:JSON.stringify({
         from:'Klypza <verify@klypza.web.id>',to:[user.email],subject:'Your Klypza free trial has ended',
-        html:'<div style="font-family:Arial,sans-serif;max-width:560px;margin:32px auto;padding:28px;color:#111936;border:1px solid #e5e8f2;border-radius:18px"><h1>Your free trial has ended</h1><p>Hello '+name+',</p><p>Your 7-day Klypza trial has ended. Downloads are now paused, but your account and download history remain available.</p><p>Continue with the Weekly plan for <strong>$1 per week</strong> (25 downloads per day, up to 5 videos per batch), or choose Standard or Premium.</p><p style="margin:26px 0"><a href="'+link+'" style="display:inline-block;padding:13px 20px;background:#2878f0;color:#fff;text-decoration:none;border-radius:10px;font-weight:bold">View subscription plans</a></p><p style="color:#64708a;font-size:13px">Klypza · klypza.web.id</p></div>',
+        html:'<div style="font-family:Arial,sans-serif;max-width:560px;margin:32px auto;padding:28px;color:#111936;border:1px solid #e5e8f2;border-radius:18px"><h1>Your free trial has ended</h1><p>Hello '+safeName+',</p><p>Your 7-day Klypza trial has ended. Downloads are now paused, but your account and download history remain available.</p><p>Continue with the Weekly plan for <strong>$1 per week</strong> (25 downloads per day, up to 5 videos per batch), or choose Standard or Premium.</p><p style="margin:26px 0"><a href="'+link+'" style="display:inline-block;padding:13px 20px;background:#2878f0;color:#fff;text-decoration:none;border-radius:10px;font-weight:bold">View subscription plans</a></p><p style="color:#64708a;font-size:13px">Klypza · klypza.web.id</p></div>',
         text:'Hello '+name+',\nYour 7-day Klypza trial has ended and downloads are paused. Continue with Weekly for $1/week (25 videos/day, 5 per batch), or choose Standard or Premium: '+link
       })});
       if(!response.ok){console.error('KLYPZA_TRIAL_EXPIRY_EMAIL',response.status,await response.text());continue;}
