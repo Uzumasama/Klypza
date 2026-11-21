@@ -94,6 +94,14 @@ test.describe('Klypza public website', () => {
     await expect(premium).toContainText('100 videos per day');
   });
 
+  test('plans API exposes exactly the three purchasable subscriptions', async ({ request }) => {
+    const response = await request.get('/api/plans');
+    expect(response.status()).toBe(200);
+    const payload = await response.json();
+    expect(payload.plans.map(plan => plan.id)).toEqual(['weekly', 'standard', 'premium']);
+    expect(payload.plans).toHaveLength(3);
+  });
+
   test('important public pages return successfully', async ({ request }) => {
     for (const path of ['/about', '/contact', '/privacy-policy', '/terms', '/copyright']) {
       const response = await request.get(path);
