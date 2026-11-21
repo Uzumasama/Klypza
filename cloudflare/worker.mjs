@@ -1326,15 +1326,24 @@ async function handleYouTubeInfo(parsed, env, user, batchId) {
   const expires = Date.now() + 60 * 60 * 1000;
   const items = [];
   const seen = new Set();
+  const eligibleFormats = [];
   for (const format of videoFormats) {
     const quality = String(format.quality || format.label || format.format || '').trim();
     if (!/^(144|240|360|480|720|1080)p$/i.test(quality) || seen.has(quality)) continue;
     seen.add(quality);
-    const name = `YouTube_${slug(title) || 'video'}_${quality}.mp4`;
-    const completionId=await createPendingDownload(user,env,'YouTube',parsed.href,title,batchId);if(!completionId){for(const item of items)if(item.completionId)await env.KLYPZA_DB.prepare("UPDATE pending_downloads SET status='cancelled' WHERE id=? AND user_id=? AND status='pending'").bind(item.completionId,user.id).run();return await quotaLimitResponse(user,env,batchId);}
-    const sig = await hmac(secret, `${parsed.href}\n${name}\n${expires}\n${quality}\n${completionId}`);
-    const file = `/api/file?u=${encodeURIComponent(parsed.href)}&q=${encodeURIComponent(quality)}&n=${encodeURIComponent(name)}&e=${expires}&d=${completionId}&s=${sig}`;
-    items.push({type:'video',quality,watermark:false,ext:'mp4',name,thumb:/^https?:\/\//i.test(thumb)?thumb:'',size_mb:typeof format.size_mb==='number'?format.size_mb:null,file,completionId});
+    eligibleFormats.push({ format, quality });
+  }
+  if (!eligibleFormats.length) return json({ error: 'no_video', message: 'No supported YouTube video qualities were found.' }, 422);
+
+  // All quality choices for one YouTube video share one reservation and one credit.
+  const completionId = await createPendingDownload(user,env,'YouTube',parsed.href,title,batchId);
+  if (!completionId) return await quotaLimitResponse(user,env,batchId);
+
+  for (const { format, quality } of eligibleFormats) {
+    const name = \`YouTube_\${slug(title) || 'video'}_\${quality}.mp4\`;
+    const sig = await hmac(secret, \`\${parsed.href}\\n\${name}\\n\${expires}\\n\${quality}\\n\${completionId}\`);
+    const file = \`/api/file?u=\${encodeURIComponent(parsed.href)}&q=\${encodeURIComponent(quality)}&n=\${encodeURIComponent(name)}&e=\${expires}&d=\${completionId}&s=\${sig}\`;
+    items.push({type:'video',quality,watermark:false,ext:'mp4',name,thumb:/^https?:\\/\\//i.test(thumb)?thumb:'',size_mb:typeof format.size_mb==='number'?format.size_mb:null,file,completionId});
   }
   if (!items.length) return json({ error: 'no_video', message: 'No supported YouTube video qualities were found.' }, 422);
   items.sort((a, b) => parseInt(b.quality, 10) - parseInt(a.quality, 10));
