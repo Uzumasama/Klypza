@@ -49,6 +49,22 @@ test('cancelling a response stream cancels the upstream without charging', async
   assert.equal(upstreamCancelled, 1);
 });
 
+test('failed finalization releases the pending reservation without charging', async () => {
+  let cancelled = 0;
+  const source = new ReadableStream({ start(controller) { controller.close(); } });
+  const stream = finalizeOnStreamCompletion(source, async () => false, async () => { cancelled += 1; });
+  await assert.rejects(stream.getReader().read(), /could not be finalized/i);
+  assert.equal(cancelled, 1);
+});
+
+test('upstream stream errors release the pending reservation', async () => {
+  let cancelled = 0;
+  const source = new ReadableStream({ start(controller) { controller.error(new Error('upstream failed')); } });
+  const stream = finalizeOnStreamCompletion(source, async () => true, async () => { cancelled += 1; });
+  await assert.rejects(stream.getReader().read(), /upstream failed/i);
+  assert.equal(cancelled, 1);
+});
+
 test('failed finalization errors the response stream instead of reporting success', async () => {
   const source = new ReadableStream({ start(controller) { controller.close(); } });
   const stream = finalizeOnStreamCompletion(source, async () => false);
