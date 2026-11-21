@@ -322,7 +322,7 @@ const SESSION_COOKIE = 'klypza_session';
 const SESSION_DAYS = 30;
 const FREE_START_CREDITS = 10;
 const PLAN_LIMITS = {
-  free: { daily: 10, batch: 5, price: 0, ads: true, quality: 'basic', queue: 'standard' },
+  free: { daily: 10, batch: 5, price: 0, ads: false, quality: 'basic', queue: 'standard' },
   standard: { daily: 60, batch: 15, price: 5.99, ads: false, quality: 'expanded', queue: 'faster' },
   weekly: { daily: 25, batch: 5, price: 1, quality: 'basic', queue: 'standard' },
   premium: { daily: 100, batch: 25, price: 9.99, ads: false, quality: 'expanded', queue: 'priority' },
