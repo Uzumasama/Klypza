@@ -66,3 +66,23 @@ test('allows an initial HTTP source when it does not downgrade from HTTPS', asyn
     assert.equal(await response.text(), 'media');
   });
 });
+
+test('uses one shared timeout deadline across all redirect hops', async () => {
+  const signals = [];
+  await withMockFetch(async (url, options) => {
+    signals.push(options.signal);
+    if (signals.length < 3) {
+      return new Response(null, {
+        status: 302,
+        headers: { location: `https://cdn${signals.length}.example/video.mp4` },
+      });
+    }
+    return new Response('media', { status: 200 });
+  }, async () => {
+    const response = await fetchSafeMedia('https://media.example/video.mp4');
+    assert.equal(await response.text(), 'media');
+    assert.equal(signals.length, 3);
+    assert.ok(signals[0] instanceof AbortSignal);
+    assert.ok(signals.every(signal => signal === signals[0]));
+  });
+});
