@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveAccountAccess, planLimits, paddleSubscriptionRowId, selectEligiblePaidSubscription, dashboardPaidSubscription, resolvePaddleSubscriptionPlan, isPaddleEventNewer, isValidPaddleTimestamp, isValidPaddleOrderTransaction, canActivatePaddleOrder, expiredPaidHistoryCutoff } from '../../cloudflare/worker.mjs';
+import { resolveAccountAccess, planLimits, paddleSubscriptionRowId, selectEligiblePaidSubscription, dashboardPaidSubscription, resolvePaddleSubscriptionPlan, isPaddleEventNewer, isValidPaddleTimestamp, isValidPaddleOrderTransaction, canActivatePaddleOrder, expiredPaidHistoryCutoff, retainDailyHistory } from '../../cloudflare/worker.mjs';
 
 const NOW = Date.parse('2026-11-21T08:00:00Z');
 const future = new Date(NOW + 3 * 86400000).toISOString();
@@ -221,4 +221,22 @@ test('paid subscription history is purged only after the Paddle billing period e
   assert.equal(expiredPaidHistoryCutoff({ provider: 'paddle', status: 'active', current_period_end: end }, afterExpiry), end);
   assert.equal(expiredPaidHistoryCutoff({ provider: 'klypza_trial', status: 'expired', current_period_end: end }, afterExpiry), null);
   assert.equal(expiredPaidHistoryCutoff({ provider: 'paddle', status: 'canceled', current_period_end: 'invalid' }, afterExpiry), null);
+});
+
+
+test('dashboard daily history keeps every current-day row and one clearly marked previous row', () => {
+  const today = [{ id: 'today-2' }, { id: 'today-1' }];
+  const previous = { id: 'previous', created_at: '2026-11-20 23:59:59' };
+  const result = retainDailyHistory(today, previous);
+  assert.deepEqual(result, [
+    { id: 'today-2' },
+    { id: 'today-1' },
+    { id: 'previous', created_at: '2026-11-20 23:59:59', isPreviousDay: true },
+  ]);
+  assert.equal(Object.hasOwn(previous, 'isPreviousDay'), false);
+});
+
+test('dashboard daily history works when no previous-day record exists', () => {
+  assert.deepEqual(retainDailyHistory([{ id: 'today' }], null), [{ id: 'today' }]);
+  assert.deepEqual(retainDailyHistory(null, null), []);
 });
