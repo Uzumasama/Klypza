@@ -6,7 +6,7 @@ account_id = "e279642bc9b3b73795df3317c4179bcf"
 [assets]
 directory = "./public"
 binding = "ASSETS"
-run_worker_first = ["/", "/login", "/register", "/dashboard", "/plans", "/api/*"]
+run_worker_first = ["/", "/login", "/register", "/dashboard", "/plans", "/about", "/contact", "/privacy-policy", "/terms", "/copyright", "/api/*"]
 
 [vars]
 PADDLE_ENV = "sandbox"
