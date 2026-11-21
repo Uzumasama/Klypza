@@ -474,6 +474,24 @@ function infoPageResponse(slug){
 }
 async function publicStats(env){if(!env.KLYPZA_DB)return json({users:0,downloads:0});const [u,d]=await Promise.all([env.KLYPZA_DB.prepare('SELECT COUNT(*) AS total FROM users').first(),env.KLYPZA_DB.prepare('SELECT COUNT(*) AS total FROM usage_events').first()]);return json({users:Number(u?.total||0),downloads:Number(d?.total||0)});}
 export function isValidPaddleTimestamp(value){ return /^\d{1,12}$/.test(String(value)); }
+export function isValidPaddleOrderTransaction(order,transaction,env){
+  if(!order||!transaction||String(transaction.status||'').toLowerCase()!=='completed')return false;
+  if(String(transaction.id||'')!==String(order.provider_reference||''))return false;
+  const custom=transaction.custom_data||{};
+  if(String(custom.klypza_user_id||'')!==String(order.user_id||''))return false;
+  if(String(custom.klypza_plan||'').toLowerCase()!==String(order.plan||'').toLowerCase())return false;
+  const priceIds={weekly:env.PADDLE_WEEKLY_PRICE_ID,standard:env.PADDLE_STANDARD_PRICE_ID,premium:env.PADDLE_PREMIUM_PRICE_ID};
+  const expectedPrice=String(priceIds[String(order.plan||'').toLowerCase()]||'');
+  const items=Array.isArray(transaction.items)?transaction.items:[];
+  if(!expectedPrice||items.length!==1)return false;
+  const item=items[0]||{},priceId=String(item.price?.id||item.price_id||'');
+  if(priceId!==expectedPrice||Number(item.quantity)!==1)return false;
+  const totals=transaction.details?.totals||{};
+  return String(transaction.currency_code||'').toUpperCase()==='USD'
+    &&String(totals.currency_code||'').toUpperCase()==='USD'
+    &&/^\d+$/.test(String(totals.subtotal||''))
+    &&Number(totals.subtotal)===Number(order.amount_minor);
+}
 
 async function handlePaddleWebhook(request,env){
  if(request.method!=='POST')return json({error:'method_not_allowed'},405,{'allow':'POST'});
@@ -484,9 +502,9 @@ async function handlePaddleWebhook(request,env){
  let e;try{e=JSON.parse(raw)}catch{return json({error:'invalid_json'},400)}const id=String(e.event_id||''),type=String(e.event_type||''),d=e.data||{};if(!id||!type)return json({error:'invalid_event'},400);if(!env.KLYPZA_DB)return json({error:'database_unavailable'},503);const c=d.custom_data||{},oid=String(c.klypza_order_id||''),occurredAt=String(e.occurred_at||'');
  try{await env.KLYPZA_DB.prepare('INSERT INTO payment_events(provider,event_id,order_id,event_type,occurred_at) VALUES(?,?,?,?,?)').bind('paddle',id,oid||null,type,occurredAt||null).run()}catch(err){const dup=await env.KLYPZA_DB.prepare('SELECT event_id FROM payment_events WHERE provider=? AND event_id=?').bind('paddle',id).first();if(dup)return json({ok:true,duplicate:true});throw err}
  try{
-  if(type==='transaction.completed'||type==='transaction.paid'){
+  if(type==='transaction.completed'){
    if(oid){
-    const o=await env.KLYPZA_DB.prepare("SELECT id,user_id,plan FROM payment_orders WHERE id=? AND provider='paddle'").bind(oid).first();
+    const o=await env.KLYPZA_DB.prepare("SELECT id,user_id,plan,amount_minor,currency,status,provider_reference FROM payment_orders WHERE id=? AND provider='paddle'").bind(oid).first();
     if(o){
      const sid=String(d.subscription_id||''),bp=d.billing_period||{},start=bp.starts_at||d.billed_at||occurredAt||new Date().toISOString(),end=bp.ends_at||null;
      const existingSub=sid?await env.KLYPZA_DB.prepare("SELECT id,paddle_event_occurred_at FROM subscriptions WHERE user_id=? AND provider='paddle' AND provider_subscription_id=? ORDER BY updated_at DESC,id DESC LIMIT 1").bind(o.user_id,sid).first():null;
