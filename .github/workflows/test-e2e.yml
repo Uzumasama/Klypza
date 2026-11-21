@@ -25,6 +25,8 @@ jobs:
           node-version: 20
       - name: Install dependencies
         run: npm install
+      - name: Run account access unit tests
+        run: npm run test:unit
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
       - name: Run browser tests
