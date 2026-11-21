@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveAccountAccess, planLimits, paddleSubscriptionRowId, selectEligiblePaidSubscription, dashboardPaidSubscription, resolvePaddleSubscriptionPlan, isPaddleEventNewer } from '../../cloudflare/worker.mjs';
+import { resolveAccountAccess, planLimits, paddleSubscriptionRowId, selectEligiblePaidSubscription, dashboardPaidSubscription, resolvePaddleSubscriptionPlan, isPaddleEventNewer, isValidPaddleTimestamp } from '../../cloudflare/worker.mjs';
 
 const NOW = Date.parse('2026-11-21T08:00:00Z');
 const future = new Date(NOW + 3 * 86400000).toISOString();
@@ -169,4 +169,14 @@ test('Paddle webhook event ordering ignores stale and malformed timestamps', () 
   assert.equal(isPaddleEventNewer('2026-11-21T08:00:00Z', '2026-11-21T09:00:00Z'), false);
   assert.equal(isPaddleEventNewer('not-a-date', '2026-11-21T09:00:00Z'), false);
   assert.equal(isPaddleEventNewer('', null), true);
+});
+
+
+test('Paddle webhook timestamp accepts numeric Unix timestamps only', () => {
+  assert.equal(isValidPaddleTimestamp('1795255200'), true);
+  assert.equal(isValidPaddleTimestamp('1'), true);
+  assert.equal(isValidPaddleTimestamp(''), false);
+  assert.equal(isValidPaddleTimestamp('abc'), false);
+  assert.equal(isValidPaddleTimestamp('\\\\d123'), false);
+  assert.equal(isValidPaddleTimestamp('1234567890123'), false);
 });
