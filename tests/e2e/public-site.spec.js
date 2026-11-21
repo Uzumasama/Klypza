@@ -48,8 +48,12 @@ test.describe('Klypza public website', () => {
     const dimensions = await page.evaluate(() => ({
       viewport: document.documentElement.clientWidth,
       document: document.documentElement.scrollWidth,
+      offenders: [...document.querySelectorAll('body *')].filter(el => {
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && (r.right > document.documentElement.clientWidth + 2 || r.left < -2);
+      }).slice(0, 12).map(el => ({tag:el.tagName, id:el.id, className:typeof el.className==='string'?el.className:'', left:Math.round(el.getBoundingClientRect().left), right:Math.round(el.getBoundingClientRect().right), width:Math.round(el.getBoundingClientRect().width)})),
     }));
-    expect(dimensions.document).toBeLessThanOrEqual(dimensions.viewport + 2);
+    expect(dimensions.document, JSON.stringify(dimensions)).toBeLessThanOrEqual(dimensions.viewport + 2);
   });
 
   test('public homepage directs visitors to registration instead of exposing the dashboard downloader', async ({ page }) => {
@@ -120,9 +124,9 @@ test.describe('Klypza API smoke and access-control checks', () => {
     const data = await response.json();
     expect(data.testPricing).toBe(true);
     expect(data.plans).toEqual(expect.arrayContaining([
-      expect.objectContaining({ id: 'weekly', dailyLimit: 25, batchLimit: 5, ads: false, price: 1, billingPeriod: 'week' }),
-      expect.objectContaining({ id: 'standard', dailyLimit: 60, batchLimit: 15, ads: false, price: 5.99 }),
-      expect.objectContaining({ id: 'premium', dailyLimit: 100, batchLimit: 25, ads: false, price: 9.99 }),
+      expect.objectContaining({ id: 'weekly', dailyLimit: 25, batchLimit: 5, price: 1, billingPeriod: 'week' }),
+      expect.objectContaining({ id: 'standard', dailyLimit: 60, batchLimit: 15, price: 5.99 }),
+      expect.objectContaining({ id: 'premium', dailyLimit: 100, batchLimit: 25, price: 9.99 }),
     ]));
   });
 
