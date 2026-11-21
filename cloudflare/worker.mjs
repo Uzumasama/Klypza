@@ -888,7 +888,7 @@ async function notifyExpiredTrials(env){
   const now=new Date().toISOString();
   const rows=await env.KLYPZA_DB.prepare("SELECT s.id AS trial_id,s.user_id,u.email,u.display_name FROM subscriptions s JOIN users u ON u.id=s.user_id LEFT JOIN subscriptions p ON p.user_id=s.user_id AND p.provider='paddle' AND p.status IN ('active','trialing','past_due') AND (p.status!='past_due' OR p.current_period_end>?) LEFT JOIN trial_notifications n ON n.user_id=s.user_id AND n.notification_type='trial_expired' WHERE s.provider='klypza_trial' AND s.status='trialing' AND s.current_period_end<=? AND p.id IS NULL AND n.user_id IS NULL ORDER BY s.current_period_end ASC LIMIT 100").bind(now,now).all();
   for(const user of rows.results||[]){
-    const name=String(user.display_name||'there').replace(/[<>]/g,'').slice(0,60);
+    const name='there';
     const link='https://klypza.web.id/plans';
     try{
       const response=await fetch('https://api.resend.com/emails',{method:'POST',headers:{authorization:'Bearer '+env.RESEND_API_KEY,'content-type':'application/json'},body:JSON.stringify({
