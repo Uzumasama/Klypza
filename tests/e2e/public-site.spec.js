@@ -78,6 +78,9 @@ test.describe('Klypza public website', () => {
     await page.goto('/plans');
     const cards = page.locator('#plansCard .pricing-card:visible');
     await expect(cards).toHaveCount(3);
+    await expect(page).toHaveTitle(/Weekly, Standard & Premium/i);
+    await expect(page.locator('meta[name="description"]')).toHaveAttribute('content', /subscriptions/i);
+    await expect(page.locator('meta[name="description"]')).not.toHaveAttribute('content', /trial/i);
     const planCardText = await cards.allTextContents();
     expect(planCardText.join(' ')).not.toContain('Free Trial');
     expect(planCardText.join(' ')).not.toMatch(/advertis|\bads?\b/i);
