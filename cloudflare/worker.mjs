@@ -993,12 +993,15 @@ export async function activatePendingDownload(user,env,id){
  return Number(r.meta?.changes||0)===1;
 }
 
-async function cancelPendingDownload(user,env,id){
- await env.KLYPZA_DB.prepare("UPDATE pending_downloads SET status='cancelled' WHERE id=? AND user_id=? AND status IN ('pending','streaming')").bind(id,user.id).run();
+export async function cancelPendingDownload(user,env,id){
+ await env.KLYPZA_DB.prepare("UPDATE pending_downloads SET status='cancelled' WHERE id=? AND user_id=? AND status IN ('ready','pending','streaming')").bind(id,user.id).run();
 }
 
 export async function claimPendingDownload(env,userId,id,now=Date.now()){
- const result=await env.KLYPZA_DB.prepare("UPDATE pending_downloads SET status='streaming' WHERE id=? AND user_id=? AND status='pending' AND expires_at>?").bind(id,userId,now).run();
+ // Start a fresh one-hour lease when the stream is claimed. This prevents
+ // scheduled expiry cleanup from deleting an active transfer near its end.
+ const leaseExpires=now+3600000;
+ const result=await env.KLYPZA_DB.prepare("UPDATE pending_downloads SET status='streaming',expires_at=? WHERE id=? AND user_id=? AND status='pending' AND expires_at>?").bind(leaseExpires,id,userId,now).run();
  return Number(result.meta?.changes||0)===1;
 }
 
