@@ -1398,6 +1398,7 @@ async function handleFile(url, env, request) {
   try {
     if (detectPlatform(src.hostname) === 'YouTube') {
       if (!/^(144|240|360|480|720|1080)p$/i.test(quality)) {
+        await cancelPendingDownload(user,env,downloadId);
         return json({ error: 'invalid_quality', message: 'Invalid YouTube quality. Process the link again.' }, 400);
       }
       const createUrl = new URL('https://api.saveapi.org/v1/youtube/create');
