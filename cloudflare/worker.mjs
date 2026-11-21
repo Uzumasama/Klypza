@@ -503,12 +503,32 @@ export function canActivatePaddleOrder(order,transaction,env){
   return Boolean(order&&order.status==='pending'&&String(order.currency||'').toUpperCase()==='USD'&&isValidPaddleOrderTransaction(order,transaction,env));
 }
 
+export async function readLimitedRequestText(request,maxBytes=1048576){
+ const declared=Number(request.headers.get('content-length')||0);
+ if(Number.isFinite(declared)&&declared>maxBytes)return null;
+ if(!request.body)return '';
+ const reader=request.body.getReader();
+ const chunks=[];let total=0;
+ try{
+  while(true){
+   const {done,value}=await reader.read();
+   if(done)break;
+   total+=value.byteLength;
+   if(total>maxBytes){try{await reader.cancel()}catch{};return null;}
+   chunks.push(value);
+  }
+ }finally{try{reader.releaseLock()}catch{}}
+ const bytes=new Uint8Array(total);let offset=0;
+ for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.byteLength;}
+ return new TextDecoder().decode(bytes);
+}
+
 async function handlePaddleWebhook(request,env){
  if(request.method!=='POST')return json({error:'method_not_allowed'},405,{'allow':'POST'});
  if(!paddleWebhookSecret(env))return json({error:'webhook_not_configured'},503);
  const sig=request.headers.get('Paddle-Signature')||'';const p=Object.fromEntries(sig.split(';').map(v=>{const i=v.indexOf('=');return i>0?[v.slice(0,i).trim(),v.slice(i+1).trim()]:['',''];}).filter(v=>v[0]));const ts=p.ts||'',h=p.h1||'';
  if(!isValidPaddleTimestamp(ts)||! /^[a-f0-9]{64}$/i.test(h)||Math.abs(Math.floor(Date.now()/1000)-Number(ts))>300)return json({error:'invalid_signature'},401);
- const raw=await request.text();if(raw.length>1048576)return json({error:'payload_too_large'},413);const key=await crypto.subtle.importKey('raw',enc.encode(paddleWebhookSecret(env)),{name:'HMAC',hash:'SHA-256'},false,['sign']);const mac=await crypto.subtle.sign('HMAC',key,enc.encode(ts+':'+raw));const expected=Array.from(new Uint8Array(mac),b=>b.toString(16).padStart(2,'0')).join('');let diff=0;for(let i=0;i<64;i++)diff|=expected.charCodeAt(i)^h.toLowerCase().charCodeAt(i);if(diff)return json({error:'invalid_signature'},401);
+ const raw=await readLimitedRequestText(request,1048576);if(raw===null)return json({error:'payload_too_large'},413);const key=await crypto.subtle.importKey('raw',enc.encode(paddleWebhookSecret(env)),{name:'HMAC',hash:'SHA-256'},false,['sign']);const mac=await crypto.subtle.sign('HMAC',key,enc.encode(ts+':'+raw));const expected=Array.from(new Uint8Array(mac),b=>b.toString(16).padStart(2,'0')).join('');let diff=0;for(let i=0;i<64;i++)diff|=expected.charCodeAt(i)^h.toLowerCase().charCodeAt(i);if(diff)return json({error:'invalid_signature'},401);
  let e;try{e=JSON.parse(raw)}catch{return json({error:'invalid_json'},400)}const id=String(e.event_id||''),type=String(e.event_type||''),d=e.data||{};if(!id||!type)return json({error:'invalid_event'},400);if(!env.KLYPZA_DB)return json({error:'database_unavailable'},503);const c=d.custom_data||{},oid=String(c.klypza_order_id||''),occurredAt=String(e.occurred_at||'');
  try{await env.KLYPZA_DB.prepare('INSERT INTO payment_events(provider,event_id,order_id,event_type,occurred_at) VALUES(?,?,?,?,?)').bind('paddle',id,oid||null,type,occurredAt||null).run()}catch(err){const dup=await env.KLYPZA_DB.prepare('SELECT event_id FROM payment_events WHERE provider=? AND event_id=?').bind('paddle',id).first();if(dup)return json({ok:true,duplicate:true});throw err}
  try{
