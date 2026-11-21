@@ -349,6 +349,7 @@ export function selectEligiblePaidSubscription(rows,now=Date.now()){
     return bEnd-aEnd;
   })[0]||null;
 }
+export function dashboardPaidSubscription(access){ return access?.subscription?.provider==='paddle'?access.subscription:null; }
 export function resolveAccountAccess(paid,trial,now=Date.now()){
   const paidStatus=String(paid?.status||'').toLowerCase(),paidEnd=paid?.current_period_end?Date.parse(paid.current_period_end):0;
   if(['active','trialing'].includes(paidStatus)||(paidStatus==='past_due'&&paidEnd>now))return {plan:String(paid.plan||'free').toLowerCase(),subscription:paid,trial:null,trialExpired:false,canDownload:true};
@@ -873,7 +874,7 @@ async function accountOverview(request,env){
     }
   }
   let access=await getAccountAccess(user,env);
-  let subscription=access.subscription||latestSubscription;
+  const subscription=dashboardPaidSubscription(access);
   const effectivePlan=access.plan;
   if(subscription?.provider==='paddle'&&String(user.plan||'free').toLowerCase()!==effectivePlan)await env.KLYPZA_DB.prepare('UPDATE users SET plan=?,updated_at=CURRENT_TIMESTAMP WHERE id=?').bind(effectivePlan,user.id).run();
   const limits=access.trialExpired?{daily:0,batch:0}:planLimits(effectivePlan);
