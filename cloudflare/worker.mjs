@@ -938,9 +938,9 @@ async function quotaLimitResponse(user,env,batchId){
  if(!batch)return json({error:'invalid_batch',message:'This download batch is invalid. Start a new batch.'},400);
  const [du,dp,bu,bp]=await Promise.all([
   env.KLYPZA_DB.prepare('SELECT COUNT(*) AS n FROM usage_events WHERE user_id=? AND usage_date=?').bind(user.id,day).first(),
-  env.KLYPZA_DB.prepare("SELECT COUNT(*) AS n FROM pending_downloads WHERE user_id=? AND status='pending' AND expires_at>?").bind(user.id,now).first(),
+  env.KLYPZA_DB.prepare("SELECT COUNT(*) AS n FROM pending_downloads WHERE user_id=? AND status IN ('ready','pending') AND expires_at>?").bind(user.id,now).first(),
   env.KLYPZA_DB.prepare('SELECT COUNT(*) AS n FROM usage_events WHERE user_id=? AND batch_id=?').bind(user.id,batchId).first(),
-  env.KLYPZA_DB.prepare("SELECT COUNT(*) AS n FROM pending_downloads WHERE user_id=? AND batch_id=? AND status='pending' AND expires_at>?").bind(user.id,batchId,now).first()
+  env.KLYPZA_DB.prepare("SELECT COUNT(*) AS n FROM pending_downloads WHERE user_id=? AND batch_id=? AND status IN ('ready','pending') AND expires_at>?").bind(user.id,batchId,now).first()
  ]);
  const daily=Number(du?.n||0)+Number(dp?.n||0),batchUsed=Number(bu?.n||0)+Number(bp?.n||0);
  if(daily>=limits.daily)return json({error:'daily_limit_reached',message:'Your daily download quota has been used up. It resets at 00:00 UTC.',limit:limits.daily,used:daily},429);
@@ -949,7 +949,7 @@ async function quotaLimitResponse(user,env,batchId){
 }
 async function createPendingDownload(user,env,platform,sourceUrl,title,batchId){
  const id=crypto.randomUUID(),limits=planLimits(user.plan),now=Date.now(),expires=now+3600000,day=utcDate();
- const sql="INSERT INTO pending_downloads(id,user_id,batch_id,platform,source_url,title,status,expires_at) SELECT ?,?,?,?,?,?,'ready',? WHERE (SELECT COUNT(*) FROM usage_events WHERE user_id=? AND usage_date=?) + (SELECT COUNT(*) FROM pending_downloads WHERE user_id=? AND status='pending' AND expires_at>?) < ? AND (SELECT COUNT(*) FROM usage_events WHERE user_id=? AND batch_id=?) + (SELECT COUNT(*) FROM pending_downloads WHERE user_id=? AND batch_id=? AND status='pending' AND expires_at>?) < (SELECT max_videos FROM download_batches WHERE id=? AND user_id=?)";
+ const sql="INSERT INTO pending_downloads(id,user_id,batch_id,platform,source_url,title,status,expires_at) SELECT ?,?,?,?,?,?,'ready',? WHERE (SELECT COUNT(*) FROM usage_events WHERE user_id=? AND usage_date=?) + (SELECT COUNT(*) FROM pending_downloads WHERE user_id=? AND status IN ('ready','pending') AND expires_at>?) < ? AND (SELECT COUNT(*) FROM usage_events WHERE user_id=? AND batch_id=?) + (SELECT COUNT(*) FROM pending_downloads WHERE user_id=? AND batch_id=? AND status IN ('ready','pending') AND expires_at>?) < (SELECT max_videos FROM download_batches WHERE id=? AND user_id=?)";
  const r=await env.KLYPZA_DB.prepare(sql).bind(id,user.id,batchId,platform,sourceUrl,String(title||'').slice(0,200),expires,user.id,day,user.id,now,limits.daily,user.id,batchId,user.id,batchId,now,batchId,user.id).run();return r.meta?.changes===1?id:null;
 }
 async function activatePendingDownload(user,env,id){
