@@ -1,3 +1,4 @@
+// Klypza production Worker entrypoint. Deploy through Wrangler to retain static assets and bindings.
 const PLATFORM_HOSTS = {
   TikTok: ['tiktok.com'],
   Instagram: ['instagram.com', 'instagr.am'],
