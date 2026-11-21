@@ -476,7 +476,7 @@ async function publicStats(env){if(!env.KLYPZA_DB)return json({users:0,downloads
 export function isValidPaddleTimestamp(value){ return /^\d{1,12}$/.test(String(value)); }
 export function isValidPaddleOrderTransaction(order,transaction,env){
   if(!order||!transaction||String(transaction.status||'').toLowerCase()!=='completed')return false;
-  if(String(transaction.id||'')!==String(order.provider_reference||''))return false;
+  if(order.provider_reference&&String(transaction.id||'')!==String(order.provider_reference))return false;
   const custom=transaction.custom_data||{};
   if(String(custom.klypza_order_id||'')!==String(order.id||''))return false;
   if(String(custom.klypza_user_id||'')!==String(order.user_id||''))return false;
