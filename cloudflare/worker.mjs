@@ -1319,7 +1319,11 @@ async function handleDownload(url, env, request) {
     return json({ error: 'upstream_timeout', message: 'SaveAPI did not respond. Please try again shortly.' }, 504);
   }
 
-  const text = await res.text();
+  let text;
+  try { text = await res.text(); } catch {
+    await cancelPendingDownload(user,env,reservationId);
+    return json({ error: 'bad_response', message: 'SaveAPI returned an unreadable response.' }, 502);
+  }
   let data = null;
   try { data = JSON.parse(text); } catch { /* bukan JSON */ }
 
