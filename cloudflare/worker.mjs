@@ -387,6 +387,7 @@ async function getAccountAccess(user,env){
   const trial=await env.KLYPZA_DB.prepare("SELECT plan,status,current_period_start,current_period_end,provider FROM subscriptions WHERE user_id=? AND provider='klypza_trial' ORDER BY created_at ASC LIMIT 1").bind(user.id).first();
   return resolveAccountAccess(paid,trial,now);
 }
+export function retainDailyHistory(todayRows,previousRow){return [...(Array.isArray(todayRows)?todayRows:[]),...(previousRow?[{...previousRow,isPreviousDay:true}]:[])];}
 function utcDate(){ return new Date().toISOString().slice(0,10); }
 function paddleEnvironment(env){ return String(env.PADDLE_ENV||'production').toLowerCase()==='sandbox'?'sandbox':'production'; }
 function paddleApiBase(env){ return paddleEnvironment(env)==='production'?'https://api.paddle.com':'https://sandbox-api.paddle.com'; }
@@ -916,8 +917,8 @@ async function accountOverview(request,env){
     env.KLYPZA_DB.prepare("SELECT plan,status,current_period_end,provider,provider_subscription_id,scheduled_change_action,scheduled_change_effective_at,paddle_checked_at FROM subscriptions WHERE user_id=? ORDER BY CASE WHEN provider='paddle' THEN 1 ELSE 0 END DESC,CASE plan WHEN 'premium' THEN 3 WHEN 'standard' THEN 2 WHEN 'weekly' THEN 1 ELSE 0 END DESC,updated_at DESC, created_at DESC,CASE WHEN provider_subscription_id IS NOT NULL THEN 1 ELSE 0 END DESC,current_period_end DESC,id DESC LIMIT 1").bind(user.id).first(),
     env.KLYPZA_DB.prepare('SELECT COUNT(*) AS used FROM usage_events WHERE user_id=? AND usage_date=?').bind(user.id,day).first()
   ]);
-  const downloads=[...(todayDownloads.results||[]),...(lastDownload?[{...lastDownload,isPreviousDay:true}]:[])];
-  const transactions=[...(todayTransactions.results||[]),...(lastTransaction?[{...lastTransaction,isPreviousDay:true}]:[])];
+  const downloads=retainDailyHistory(todayDownloads.results,lastDownload);
+  const transactions=retainDailyHistory(todayTransactions.results,lastTransaction);
   if(paddleApiKey(env)){
     const paddleRows=await env.KLYPZA_DB.prepare("SELECT provider_subscription_id,MAX(paddle_checked_at) AS paddle_checked_at FROM subscriptions WHERE user_id=? AND provider='paddle' AND provider_subscription_id IS NOT NULL GROUP BY provider_subscription_id").bind(user.id).all();
     for(const row of paddleRows.results||[]){
