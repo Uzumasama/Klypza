@@ -960,7 +960,7 @@ async function activatePendingDownload(user,env,id){
 }
 
 async function cancelPendingDownload(user,env,id){
- await env.KLYPZA_DB.prepare("UPDATE pending_downloads SET status='cancelled' WHERE id=? AND user_id=? AND status='pending'").bind(id,user.id).run();
+ await env.KLYPZA_DB.prepare("UPDATE pending_downloads SET status='cancelled' WHERE id=? AND user_id=? AND status IN ('pending','streaming')").bind(id,user.id).run();
 }
 
 export function finalizeOnStreamCompletion(body,onComplete,onCancel=async()=>{}) {
@@ -992,11 +992,11 @@ export function finalizeOnStreamCompletion(body,onComplete,onCancel=async()=>{})
 }
 
 async function consumePendingDownload(user,env,id){
- const p=await env.KLYPZA_DB.prepare('SELECT * FROM pending_downloads WHERE id=? AND user_id=?').bind(id,user.id).first();if(!p||p.status!=='pending'||Number(p.expires_at)<=Date.now())return false;
+ const p=await env.KLYPZA_DB.prepare('SELECT * FROM pending_downloads WHERE id=? AND user_id=?').bind(id,user.id).first();if(!p||p.status!=='streaming'||Number(p.expires_at)<=Date.now())return false;
  const limits=planLimits(user.plan),day=utcDate(),now=Date.now();
  const batch=await env.KLYPZA_DB.batch([
- env.KLYPZA_DB.prepare("INSERT OR IGNORE INTO usage_events(id,user_id,batch_id,usage_date,platform,source_url,title) SELECT id,user_id,batch_id,?,platform,source_url,title FROM pending_downloads WHERE id=? AND user_id=? AND status='pending' AND expires_at>? AND (SELECT COUNT(*) FROM usage_events WHERE user_id=? AND usage_date=?) + (SELECT COUNT(*) FROM pending_downloads WHERE user_id=? AND status='pending' AND id<>? AND expires_at>?) < ? AND (SELECT COUNT(*) FROM usage_events WHERE user_id=? AND batch_id=?) + (SELECT COUNT(*) FROM pending_downloads WHERE user_id=? AND batch_id=? AND status='pending' AND id<>? AND expires_at>?) < (SELECT max_videos FROM download_batches WHERE id=? AND user_id=?)").bind(day,id,user.id,now,user.id,day,user.id,id,now,limits.daily,user.id,p.batch_id,user.id,p.batch_id,id,now,p.batch_id,user.id),
- env.KLYPZA_DB.prepare("UPDATE pending_downloads SET status='completed',completed_at=CURRENT_TIMESTAMP WHERE id=? AND user_id=? AND status='pending' AND EXISTS(SELECT 1 FROM usage_events WHERE id=? AND user_id=?)").bind(id,user.id,id,user.id),
+ env.KLYPZA_DB.prepare("INSERT OR IGNORE INTO usage_events(id,user_id,batch_id,usage_date,platform,source_url,title) SELECT id,user_id,batch_id,?,platform,source_url,title FROM pending_downloads WHERE id=? AND user_id=? AND status='streaming' AND expires_at>? AND (SELECT COUNT(*) FROM usage_events WHERE user_id=? AND usage_date=?) + (SELECT COUNT(*) FROM pending_downloads WHERE user_id=? AND status='pending' AND id<>? AND expires_at>?) < ? AND (SELECT COUNT(*) FROM usage_events WHERE user_id=? AND batch_id=?) + (SELECT COUNT(*) FROM pending_downloads WHERE user_id=? AND batch_id=? AND status='pending' AND id<>? AND expires_at>?) < (SELECT max_videos FROM download_batches WHERE id=? AND user_id=?)").bind(day,id,user.id,now,user.id,day,user.id,id,now,limits.daily,user.id,p.batch_id,user.id,p.batch_id,id,now,p.batch_id,user.id),
+ env.KLYPZA_DB.prepare("UPDATE pending_downloads SET status='completed',completed_at=CURRENT_TIMESTAMP WHERE id=? AND user_id=? AND status='streaming' AND EXISTS(SELECT 1 FROM usage_events WHERE id=? AND user_id=?)").bind(id,user.id,id,user.id),
  env.KLYPZA_DB.prepare("INSERT INTO credit_transactions(id,user_id,amount,balance_after,reason,reference_id) SELECT ?,?,-1,MAX(0,?-(SELECT COUNT(*) FROM usage_events WHERE user_id=? AND usage_date=?)),'video_download',? WHERE EXISTS(SELECT 1 FROM usage_events WHERE id=? AND user_id=?) AND NOT EXISTS(SELECT 1 FROM credit_transactions WHERE reference_id=?)").bind(crypto.randomUUID(),user.id,limits.daily,user.id,day,id,id,user.id,id),
  env.KLYPZA_DB.prepare("INSERT OR IGNORE INTO downloads(id,user_id,platform,source_url,title,credits_used,status) SELECT id,user_id,platform,source_url,title,1,'completed' FROM pending_downloads WHERE id=? AND user_id=? AND EXISTS(SELECT 1 FROM usage_events WHERE id=? AND user_id=?)").bind(id,user.id,id,user.id)
  ]);return Number(batch[0]?.meta?.changes||0)===1;
@@ -1169,7 +1169,7 @@ async function handleCancelDownload(request,env){
  const user=await getSessionUser(request,env);if(!user)return json({error:'login_required'},401);
  let body;try{body=await request.json()}catch{return json({error:'bad_request'},400)}
  const id=String(body?.id||'');if(!/^[0-9a-f-]{36}$/i.test(id))return json({error:'invalid_download'},400);
- const r=await env.KLYPZA_DB.prepare("UPDATE pending_downloads SET status='cancelled' WHERE id=? AND user_id=? AND status IN ('ready','pending') AND expires_at>?").bind(id,user.id,Date.now()).run();
+ const r=await env.KLYPZA_DB.prepare("UPDATE pending_downloads SET status='cancelled' WHERE id=? AND user_id=? AND status IN ('ready','pending','streaming') AND expires_at>?").bind(id,user.id,Date.now()).run();
  if(Number(r.meta?.changes||0)===1)return json({ok:true,status:'cancelled'});
  const current=await env.KLYPZA_DB.prepare('SELECT status FROM pending_downloads WHERE id=? AND user_id=?').bind(id,user.id).first();
  if(!current)return json({error:'not_found'},404);
@@ -1461,7 +1461,10 @@ async function handleFile(url, env, request) {
     await cancelPendingDownload(user,env,downloadId);
     return json({error:'file_too_large',message:"This file exceeds Klypza's secure transfer limit. No quota was deducted."},413);
   }
-  // Keep the reservation pending while bytes are streamed. Consume the credit only after EOF.
+  // Atomically claim the reservation so the same download token cannot stream twice.
+  const claimed=await env.KLYPZA_DB.prepare("UPDATE pending_downloads SET status='streaming' WHERE id=? AND user_id=? AND status='pending' AND expires_at>?").bind(downloadId,user.id,Date.now()).run();
+  if(Number(claimed.meta?.changes||0)!==1){try{await up.body.cancel();}catch{}return json({error:'download_already_started',message:'This download has already started or was cancelled. Process the link again if needed.'},409);}
+  // Consume the credit only after the complete response stream reaches EOF.
   const headers = new Headers();
   headers.set('content-type', up.headers.get('content-type') || 'application/octet-stream');
   const len = up.headers.get('content-length');
