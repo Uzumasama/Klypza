@@ -81,7 +81,7 @@ test.describe('Klypza public website', () => {
     await page.goto('/plans');
     const cards = page.locator('#plansCard .pricing-card:visible');
     const trial = cards.filter({ hasText: 'Free Trial' });
-    const weekly = cards.filter({ hasText: 'Weekly' });
+    const weekly = cards.filter({ has: page.locator('h3', { hasText: /^Weekly$/ }) });
     const standard = cards.filter({ hasText: 'Standard' });
     const premium = cards.filter({ hasText: 'Premium' });
     await expect(trial).toContainText('5 videos per batch');
