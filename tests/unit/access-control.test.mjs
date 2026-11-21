@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveAccountAccess, planLimits, paddleSubscriptionRowId, selectEligiblePaidSubscription, dashboardPaidSubscription, resolvePaddleSubscriptionPlan, isPaddleEventNewer, isValidPaddleTimestamp, isValidPaddleOrderTransaction, canActivatePaddleOrder, expiredPaidHistoryCutoff, retainDailyHistory } from '../../cloudflare/worker.mjs';
+import { resolveAccountAccess, planLimits, paddleSubscriptionRowId, selectEligiblePaidSubscription, dashboardPaidSubscription, resolvePaddleSubscriptionPlan, isPaddleEventNewer, isValidPaddleTimestamp, isValidPaddleOrderTransaction, canActivatePaddleOrder, expiredPaidHistoryCutoff, retainDailyHistory, escapeHtml } from '../../cloudflare/worker.mjs';
 
 const NOW = Date.parse('2026-11-21T08:00:00Z');
 const future = new Date(NOW + 3 * 86400000).toISOString();
@@ -239,4 +239,11 @@ test('dashboard daily history keeps every current-day row and one clearly marked
 test('dashboard daily history works when no previous-day record exists', () => {
   assert.deepEqual(retainDailyHistory([{ id: 'today' }], null), [{ id: 'today' }]);
   assert.deepEqual(retainDailyHistory(null, null), []);
+});
+
+
+test('trial expiry email greeting safely escapes display names', () => {
+  assert.equal(escapeHtml('A & B <Team>'), 'A &amp; B &lt;Team&gt;');
+  assert.equal(escapeHtml('"Klypza"'), '&quot;Klypza&quot;');
+  assert.equal(escapeHtml(''), '');
 });
