@@ -10,6 +10,32 @@ test.describe('Klypza public website', () => {
     await expect(page.locator('body')).not.toContainText(/internal server error|worker threw exception/i);
   });
 
+  test('homepage has clear search intent and accurate application structured data', async ({ page }) => {
+    await page.goto('/');
+    await expect(page).toHaveTitle(/Social Video Downloader for TikTok, Reels & Shorts/i);
+    await expect(page.locator('h1').first()).toContainText(/TikTok, Reels, Shorts & Pinterest/i);
+    await expect(page.locator('meta[name="description"]')).toHaveAttribute('content', /public videos.*individually or in batches/i);
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://klypza.web.id/');
+
+    const schemas = await page.locator('script[type="application/ld+json"]').evaluateAll(nodes =>
+      nodes.map(node => JSON.parse(node.textContent))
+    );
+    const app = schemas.find(schema => schema['@type'] === 'WebApplication');
+    expect(app).toBeTruthy();
+    expect(app.isAccessibleForFree).toBe(true);
+    expect(app).not.toHaveProperty('offers');
+  });
+
+  test('public information and plans pages use matching canonical and Open Graph URLs', async ({ page }) => {
+    for (const path of ['/plans', '/about', '/contact', '/privacy-policy', '/terms', '/copyright']) {
+      await page.goto(path);
+      const expected = 'https://klypza.web.id' + path;
+      await expect(page.locator('link[rel="canonical"]'), path + ' canonical').toHaveAttribute('href', expected);
+      await expect(page.locator('meta[property="og:url"]'), path + ' Open Graph URL').toHaveAttribute('content', expected);
+      await expect(page.locator('meta[name="description"]'), path + ' description').toHaveAttribute('content', /.+/);
+    }
+  });
+
   test('homepage contains no third-party advertising scripts or ad placeholders', async ({ page }) => {
     const response = await page.goto('/');
     expect(response).not.toBeNull();
