@@ -346,7 +346,7 @@ export function resolveAccountAccess(paid,trial,now=Date.now()){
 }
 async function getAccountAccess(user,env){
   const now=Date.now();
-  const paid=await env.KLYPZA_DB.prepare("SELECT plan,status,current_period_end,provider,provider_subscription_id,scheduled_change_action,scheduled_change_effective_at,paddle_checked_at FROM subscriptions WHERE user_id=? AND provider='paddle' AND status IN ('active','trialing','past_due') ORDER BY CASE plan WHEN 'premium' THEN 3 WHEN 'standard' THEN 2 WHEN 'weekly' THEN 1 ELSE 0 END DESC,updated_at DESC,created_at DESC,CASE WHEN provider_subscription_id IS NOT NULL THEN 1 ELSE 0 END DESC,current_period_end DESC,id DESC LIMIT 1").bind(user.id).first();
+  const paid=await env.KLYPZA_DB.prepare("SELECT plan,status,current_period_end,provider,provider_subscription_id,scheduled_change_action,scheduled_change_effective_at,paddle_checked_at FROM subscriptions WHERE user_id=? AND provider='paddle' AND (status IN ('active','trialing') OR (status='past_due' AND current_period_end>?)) ORDER BY CASE plan WHEN 'premium' THEN 3 WHEN 'standard' THEN 2 WHEN 'weekly' THEN 1 ELSE 0 END DESC,updated_at DESC,created_at DESC,CASE WHEN provider_subscription_id IS NOT NULL THEN 1 ELSE 0 END DESC,current_period_end DESC,id DESC LIMIT 1").bind(user.id,new Date(now).toISOString()).first();
   const trial=await env.KLYPZA_DB.prepare("SELECT plan,status,current_period_start,current_period_end,provider FROM subscriptions WHERE user_id=? AND provider='klypza_trial' ORDER BY created_at ASC LIMIT 1").bind(user.id).first();
   return resolveAccountAccess(paid,trial,now);
 }
