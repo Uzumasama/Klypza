@@ -478,6 +478,7 @@ export function isValidPaddleOrderTransaction(order,transaction,env){
   if(!order||!transaction||String(transaction.status||'').toLowerCase()!=='completed')return false;
   if(String(transaction.id||'')!==String(order.provider_reference||''))return false;
   const custom=transaction.custom_data||{};
+  if(String(custom.klypza_order_id||'')!==String(order.id||''))return false;
   if(String(custom.klypza_user_id||'')!==String(order.user_id||''))return false;
   if(String(custom.klypza_plan||'').toLowerCase()!==String(order.plan||'').toLowerCase())return false;
   const priceIds={weekly:env.PADDLE_WEEKLY_PRICE_ID,standard:env.PADDLE_STANDARD_PRICE_ID,premium:env.PADDLE_PREMIUM_PRICE_ID};
