@@ -77,21 +77,24 @@ test.describe('Klypza public website', () => {
     await expect(page.locator('#dashboardCard')).toBeHidden();
   });
 
-  test('plans page matches the agreed Free, Standard and Premium allowances', async ({ page }) => {
+  test('plans page shows the 7-day trial, Weekly, Standard and Premium allowances', async ({ page }) => {
     await page.goto('/plans');
-    const visiblePlanText = (text) => page.locator('li:visible').getByText(text, { exact: true });
-    for (const allowance of [
-      '5 videos per batch',
-      '10 videos per day',
-      '15 videos per batch',
-      '60 videos per day',
-      '25 videos per batch',
-      '100 videos per day',
-    ]) {
-      await expect(visiblePlanText(allowance)).toBeVisible();
-    }
-    await expect(page.locator('.plan-price:visible').filter({ hasText: '$5.99' })).toBeVisible();
-    await expect(page.locator('.plan-price:visible').filter({ hasText: '$9.99' })).toBeVisible();
+    const cards = page.locator('#plansCard .pricing-card:visible');
+    const trial = cards.filter({ hasText: 'Free Trial' });
+    const weekly = cards.filter({ hasText: 'Weekly' });
+    const standard = cards.filter({ hasText: 'Standard' });
+    const premium = cards.filter({ hasText: 'Premium' });
+    await expect(trial).toContainText('5 videos per batch');
+    await expect(trial).toContainText('10 videos per day');
+    await expect(weekly).toContainText('$1');
+    await expect(weekly).toContainText('5 videos per batch');
+    await expect(weekly).toContainText('10 videos per day');
+    await expect(standard).toContainText('$5.99');
+    await expect(standard).toContainText('15 videos per batch');
+    await expect(standard).toContainText('60 videos per day');
+    await expect(premium).toContainText('$9.99');
+    await expect(premium).toContainText('25 videos per batch');
+    await expect(premium).toContainText('100 videos per day');
   });
 
   test('important public pages return successfully', async ({ request }) => {
@@ -125,7 +128,8 @@ test.describe('Klypza API smoke and access-control checks', () => {
     const data = await response.json();
     expect(data.testPricing).toBe(true);
     expect(data.plans).toEqual(expect.arrayContaining([
-      expect.objectContaining({ id: 'free', dailyLimit: 10, batchLimit: 5, ads: true }),
+      expect.objectContaining({ id: 'trial', dailyLimit: 10, batchLimit: 5, ads: false, price: 0 }),
+      expect.objectContaining({ id: 'weekly', dailyLimit: 10, batchLimit: 5, ads: false, price: 1, billingPeriod: 'week' }),
       expect.objectContaining({ id: 'standard', dailyLimit: 60, batchLimit: 15, ads: false, price: 5.99 }),
       expect.objectContaining({ id: 'premium', dailyLimit: 100, batchLimit: 25, ads: false, price: 9.99 }),
     ]));
