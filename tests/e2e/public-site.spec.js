@@ -80,6 +80,7 @@ test.describe('Klypza public website', () => {
     await expect(cards).toHaveCount(3);
     const planCardText = await cards.allTextContents();
     expect(planCardText.join(' ')).not.toContain('Free Trial');
+    expect(planCardText.join(' ')).not.toMatch(/advertis|\bads?\b/i);
     const weekly = cards.filter({ has: page.locator('h3', { hasText: /^Weekly$/ }) });
     const standard = cards.filter({ hasText: 'Standard' });
     const premium = cards.filter({ hasText: 'Premium' });
