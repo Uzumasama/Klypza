@@ -10,21 +10,14 @@ test.describe('Klypza public website', () => {
     await expect(page.locator('body')).not.toContainText(/internal server error|worker threw exception/i);
   });
 
-  test('anonymous homepage includes the approved Monetag In-Page Push tag without banner placeholders', async ({ page }) => {
+  test('homepage contains no third-party advertising scripts or ad placeholders', async ({ page }) => {
     const response = await page.goto('/');
     expect(response).not.toBeNull();
     expect(response.status()).toBeLessThan(400);
-
-    const headScripts = await page.locator('head script').evaluateAll(nodes =>
-      nodes.map(node => node.textContent || '').join('\\n')
-    );
-    expect(headScripts).toContain('12312106');
-    expect(headScripts).toContain('https://nap5k.com/tag.min.js');
-
-    await expect(page.locator('body')).not.toContainText('Ad placement for Free accounts');
-    await expect(page.locator('body')).not.toContainText('Support Klypza — ad placement');
+    const scripts = await page.locator('script[src]').evaluateAll(nodes => nodes.map(node => node.src));
+    expect(scripts.join(' ')).not.toMatch(/monetag|nap5k|adsbygoogle|adsterra/i);
+    await expect(page.locator('body')).not.toContainText(/advertisement|ad placement|support klypza.*ad/i);
   });
-
   test('robots.txt and sitemap.xml expose the intended public pages', async ({ request }) => {
     const robots = await request.get('/robots.txt');
     expect(robots.status()).toBe(200);
@@ -77,18 +70,17 @@ test.describe('Klypza public website', () => {
     await expect(page.locator('#dashboardCard')).toBeHidden();
   });
 
-  test('plans page shows the 7-day trial, Weekly, Standard and Premium allowances', async ({ page }) => {
+  test('plans page shows only Weekly, Standard and Premium allowances', async ({ page }) => {
     await page.goto('/plans');
     const cards = page.locator('#plansCard .pricing-card:visible');
-    const trial = cards.filter({ hasText: 'Free Trial' });
+    await expect(cards).toHaveCount(3);
+    await expect(cards).not.toContainText('Free Trial');
     const weekly = cards.filter({ has: page.locator('h3', { hasText: /^Weekly$/ }) });
     const standard = cards.filter({ hasText: 'Standard' });
     const premium = cards.filter({ hasText: 'Premium' });
-    await expect(trial).toContainText('5 videos per batch');
-    await expect(trial).toContainText('10 videos per day');
     await expect(weekly).toContainText('$1');
     await expect(weekly).toContainText('5 videos per batch');
-    await expect(weekly).toContainText('10 videos per day');
+    await expect(weekly).toContainText('25 videos per day');
     await expect(standard).toContainText('$5.99');
     await expect(standard).toContainText('15 videos per batch');
     await expect(standard).toContainText('60 videos per day');
@@ -128,8 +120,7 @@ test.describe('Klypza API smoke and access-control checks', () => {
     const data = await response.json();
     expect(data.testPricing).toBe(true);
     expect(data.plans).toEqual(expect.arrayContaining([
-      expect.objectContaining({ id: 'trial', dailyLimit: 10, batchLimit: 5, ads: false, price: 0 }),
-      expect.objectContaining({ id: 'weekly', dailyLimit: 10, batchLimit: 5, ads: false, price: 1, billingPeriod: 'week' }),
+      expect.objectContaining({ id: 'weekly', dailyLimit: 25, batchLimit: 5, ads: false, price: 1, billingPeriod: 'week' }),
       expect.objectContaining({ id: 'standard', dailyLimit: 60, batchLimit: 15, ads: false, price: 5.99 }),
       expect.objectContaining({ id: 'premium', dailyLimit: 100, batchLimit: 25, ads: false, price: 9.99 }),
     ]));
