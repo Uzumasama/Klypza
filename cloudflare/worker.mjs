@@ -1379,20 +1379,23 @@ async function handleFile(url, env, request) {
           signal: AbortSignal.timeout(60000),
         });
       } catch {
-        return json({ error: 'upstream_timeout', message: 'SaveAPI did not respond while preparing the YouTube file. Please try again.' }, 504);
+        await cancelPendingDownload(user,env,downloadId); return json({ error: 'upstream_timeout', message: 'SaveAPI did not respond while preparing the YouTube file. Please try again.' }, 504);
       }
       let made;
       try { made = await createRes.json(); } catch {
+        await cancelPendingDownload(user,env,downloadId);
         return json({ error: 'bad_response', message: 'SaveAPI returned an unreadable YouTube download response.' }, 502);
       }
-      if (!createRes.ok || !made || made.success === false) return saveApiError(made || {}, createRes.status, createRes.headers.get('Retry-After'));
+      if (!createRes.ok || !made || made.success === false) { await cancelPendingDownload(user,env,downloadId); return saveApiError(made || {}, createRes.status, createRes.headers.get('Retry-After')); }
       const madeRoot = made.data && typeof made.data === 'object' ? made.data : made;
       const streamUrl = madeRoot.url || madeRoot.download_url || madeRoot.downloadUrl;
       if (typeof streamUrl !== 'string') {
+        await cancelPendingDownload(user,env,downloadId);
         return json({ error: 'bad_response', message: 'SaveAPI did not return a YouTube download stream.' }, 502);
       }
       const mediaUrl = new URL(streamUrl);
       if (mediaUrl.protocol !== 'https:' || mediaUrl.username || mediaUrl.password || isPrivateHost(mediaUrl.hostname)) {
+        await cancelPendingDownload(user,env,downloadId);
         return json({ error: 'bad_response', message: 'SaveAPI returned an invalid YouTube stream URL.' }, 502);
       }
       fallbackUrl = mediaUrl.href;
@@ -1401,13 +1404,15 @@ async function handleFile(url, env, request) {
       up = await fetchSafeMedia(src.href);
     }
   } catch {
+    await cancelPendingDownload(user,env,downloadId);
     return json({ error: 'upstream_error', message: 'Could not retrieve the file.' }, 502);
   }
-  if (!up.ok || !up.body) return json({ error: 'upstream_error', message: `Could not retrieve the file (kode ${up.status}).` }, 502);
+  if (!up.ok || !up.body) { await cancelPendingDownload(user,env,downloadId); return json({ error: 'upstream_error', message: `Could not retrieve the file (kode ${up.status}).` }, 502); }
 
   const size = Number(up.headers.get('content-length') || 0);
   if (size > Number(env.MAX_PROXY_BYTES || 19500000)) {
     try { await up.body.cancel(); } catch { /* ignore */ }
+    await cancelPendingDownload(user,env,downloadId);
     return json({error:'file_too_large',message:"This file exceeds Klypza's secure transfer limit. No quota was deducted."},413);
   }
   // Keep the reservation pending while bytes are streamed. Consume the credit only after EOF.
