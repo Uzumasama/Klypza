@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveAccountAccess, planLimits, paddleSubscriptionRowId, selectEligiblePaidSubscription } from '../../cloudflare/worker.mjs';
+import { resolveAccountAccess, planLimits, paddleSubscriptionRowId, selectEligiblePaidSubscription, dashboardPaidSubscription } from '../../cloudflare/worker.mjs';
 
 const NOW = Date.parse('2026-11-21T08:00:00Z');
 const future = new Date(NOW + 3 * 86400000).toISOString();
@@ -104,4 +104,23 @@ test('active Premium remains preferred over active Standard and Weekly', () => {
     { plan: 'premium', status: 'active', current_period_end: future },
   ], NOW);
   assert.equal(selected.plan, 'premium');
+});
+
+test('trial subscription is not exposed as an active paid dashboard subscription', () => {
+  const access = resolveAccountAccess(null, { plan: 'weekly', provider: 'klypza_trial', status: 'trialing', current_period_end: future }, NOW);
+  assert.equal(access.plan, 'trial');
+  assert.equal(dashboardPaidSubscription(access), null);
+});
+
+test('expired paid history is not exposed as an active paid dashboard subscription', () => {
+  const paid = selectEligiblePaidSubscription([{ plan: 'premium', provider: 'paddle', status: 'past_due', current_period_end: past }], NOW);
+  const access = resolveAccountAccess(paid, null, NOW);
+  assert.equal(access.canDownload, false);
+  assert.equal(dashboardPaidSubscription(access), null);
+});
+
+test('eligible Paddle subscription remains visible in dashboard', () => {
+  const paid = { plan: 'premium', provider: 'paddle', status: 'active', current_period_end: future };
+  const access = resolveAccountAccess(paid, null, NOW);
+  assert.equal(dashboardPaidSubscription(access), paid);
 });
