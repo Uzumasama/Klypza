@@ -1036,7 +1036,7 @@ async function handleDownloadComplete(request,env){
 export function expiredPaidHistoryCutoff(subscription,now=Date.now()){
   if(!subscription||String(subscription.provider||'').toLowerCase()!=='paddle')return null;
   const status=String(subscription.status||'').toLowerCase();
-  if(!['canceled','cancelled','paused','past_due','expired','ended','inactive'].includes(status))return null;
+  if(!['active','canceled','cancelled','paused','past_due','expired','ended','inactive'].includes(status))return null;
   const end=Date.parse(subscription.current_period_end||'');
   if(!Number.isFinite(end)||end>now)return null;
   return new Date(end).toISOString();
@@ -1045,7 +1045,7 @@ export function expiredPaidHistoryCutoff(subscription,now=Date.now()){
 async function purgeExpiredPaidHistory(env){
   if(!env.KLYPZA_DB)return;
   const now=new Date().toISOString();
-  const rows=await env.KLYPZA_DB.prepare("SELECT s.user_id,MAX(s.current_period_end) AS current_period_end,MAX(s.status) AS status FROM subscriptions s WHERE s.provider='paddle' AND s.current_period_end IS NOT NULL AND lower(s.status) IN ('canceled','cancelled','paused','past_due','expired','ended','inactive') AND datetime(s.current_period_end)<=datetime(?) AND NOT EXISTS(SELECT 1 FROM subscriptions a WHERE a.user_id=s.user_id AND a.provider='paddle' AND a.id<>s.id AND lower(a.status) IN ('active','trialing','past_due') AND (a.current_period_end IS NULL OR datetime(a.current_period_end)>datetime(?))) GROUP BY s.user_id ORDER BY MAX(s.current_period_end) ASC LIMIT 100").bind(now,now).all();
+  const rows=await env.KLYPZA_DB.prepare("SELECT s.user_id,MAX(s.current_period_end) AS current_period_end,MAX(s.status) AS status FROM subscriptions s WHERE s.provider='paddle' AND s.current_period_end IS NOT NULL AND lower(s.status) IN ('active','canceled','cancelled','paused','past_due','expired','ended','inactive') AND datetime(s.current_period_end)<=datetime(?) AND NOT EXISTS(SELECT 1 FROM subscriptions a WHERE a.user_id=s.user_id AND a.provider='paddle' AND a.id<>s.id AND lower(a.status) IN ('active','trialing','past_due') AND (a.current_period_end IS NULL OR datetime(a.current_period_end)>datetime(?))) GROUP BY s.user_id ORDER BY MAX(s.current_period_end) ASC LIMIT 100").bind(now,now).all();
   for(const row of rows.results||[]){
     const cutoff=expiredPaidHistoryCutoff({provider:'paddle',status:row.status,current_period_end:row.current_period_end});
     if(!cutoff)continue;
