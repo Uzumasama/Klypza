@@ -334,7 +334,22 @@ const PLAN_LIMITS = {
 };
 export function paddleSubscriptionRowId(existingId,paddleId){ return String(existingId||paddleId||'')||null; }
 export function planLimits(plan){ return PLAN_LIMITS[String(plan||'free').toLowerCase()] || PLAN_LIMITS.free; }
-export function resolveAccountAccess(paid,trial,now=Date.now()){
+export function selectEligiblePaidSubscription(rows,now=Date.now()){
+  const priority={premium:3,standard:2,weekly:1};
+  return (Array.isArray(rows)?rows:[]).filter(row=>{
+    const status=String(row?.status||'').toLowerCase();
+    if(['active','trialing'].includes(status))return true;
+    if(status!=='past_due')return false;
+    const end=row?.current_period_end?Date.parse(row.current_period_end):0;
+    return Number.isFinite(end)&&end>now;
+  }).sort((a,b)=>{
+    const tier=(priority[String(b?.plan||'').toLowerCase()]||0)-(priority[String(a?.plan||'').toLowerCase()]||0);
+    if(tier)return tier;
+    const aEnd=Date.parse(a?.current_period_end||'')||0,bEnd=Date.parse(b?.current_period_end||'')||0;
+    return bEnd-aEnd;
+  })[0]||null;
+}
+function resolveAccountAccess(paid,trial,now=Date.now()){
   const paidStatus=String(paid?.status||'').toLowerCase(),paidEnd=paid?.current_period_end?Date.parse(paid.current_period_end):0;
   if(['active','trialing'].includes(paidStatus)||(paidStatus==='past_due'&&paidEnd>now))return {plan:String(paid.plan||'free').toLowerCase(),subscription:paid,trial:null,trialExpired:false,canDownload:true};
   if(trial){
@@ -346,7 +361,8 @@ export function resolveAccountAccess(paid,trial,now=Date.now()){
 }
 async function getAccountAccess(user,env){
   const now=Date.now();
-  const paid=await env.KLYPZA_DB.prepare("SELECT plan,status,current_period_end,provider,provider_subscription_id,scheduled_change_action,scheduled_change_effective_at,paddle_checked_at FROM subscriptions WHERE user_id=? AND provider='paddle' AND (status IN ('active','trialing') OR (status='past_due' AND current_period_end>?)) ORDER BY CASE plan WHEN 'premium' THEN 3 WHEN 'standard' THEN 2 WHEN 'weekly' THEN 1 ELSE 0 END DESC,updated_at DESC,created_at DESC,CASE WHEN provider_subscription_id IS NOT NULL THEN 1 ELSE 0 END DESC,current_period_end DESC,id DESC LIMIT 1").bind(user.id,new Date(now).toISOString()).first();
+  const paidRows=await env.KLYPZA_DB.prepare("SELECT plan,status,current_period_end,provider,provider_subscription_id,scheduled_change_action,scheduled_change_effective_at,paddle_checked_at,updated_at,created_at,id FROM subscriptions WHERE user_id=? AND provider='paddle' AND status IN ('active','trialing','past_due')").bind(user.id).all();
+  const paid=selectEligiblePaidSubscription(paidRows.results||[],now);
   const trial=await env.KLYPZA_DB.prepare("SELECT plan,status,current_period_start,current_period_end,provider FROM subscriptions WHERE user_id=? AND provider='klypza_trial' ORDER BY created_at ASC LIMIT 1").bind(user.id).first();
   return resolveAccountAccess(paid,trial,now);
 }
