@@ -909,6 +909,31 @@ async function activatePendingDownload(user,env,id){
  return Number(r.meta?.changes||0)===1;
 }
 
+export function finalizeOnStreamCompletion(body,onComplete,onCancel=async()=>{}) {
+ const reader=body.getReader();
+ let settled=false;
+ return new ReadableStream({
+  async pull(controller){
+   try{
+    const part=await reader.read();
+    if(part.done){
+     settled=true;
+     const completed=await onComplete();
+     if(completed===false)throw new Error('Download could not be finalized');
+     controller.close();
+     return;
+    }
+    controller.enqueue(part.value);
+   }catch(error){settled=true;controller.error(error);}
+  },
+  async cancel(reason){
+   if(settled)return;
+   settled=true;
+   try{await reader.cancel(reason);}finally{await onCancel(reason);}
+  },
+ });
+}
+
 async function consumePendingDownload(user,env,id){
  const p=await env.KLYPZA_DB.prepare('SELECT * FROM pending_downloads WHERE id=? AND user_id=?').bind(id,user.id).first();if(!p||p.status!=='pending'||Number(p.expires_at)<=Date.now())return false;
  const limits=planLimits(user.plan),day=utcDate(),now=Date.now();
@@ -1372,7 +1397,12 @@ async function handleFile(url, env, request) {
   headers.set('content-disposition', `attachment; filename="${name}"`);
   headers.set('cache-control', 'no-store');
   headers.set('x-content-type-options', 'nosniff');
-  return new Response(up.body, { status: 200, headers });
+  const completedBody=finalizeOnStreamCompletion(
+    up.body,
+    async()=>consumePendingDownload(user,env,downloadId),
+    async()=>{await env.KLYPZA_DB.prepare("UPDATE pending_downloads SET status='cancelled' WHERE id=? AND user_id=? AND status='pending'").bind(downloadId,user.id).run();},
+  );
+  return new Response(completedBody, { status: 200, headers });
 }
 
 // ---------- merapikan balasan API ----------
