@@ -332,6 +332,21 @@ const PLAN_LIMITS = {
   weekly: { daily: 25, batch: 5, price: 1, quality: 'basic', queue: 'standard' },
   premium: { daily: 100, batch: 25, price: 9.99, ads: false, quality: 'expanded', queue: 'priority' },
 };
+export function resolvePaddleSubscriptionPlan(subscription,env,fallback=''){
+ const items=Array.isArray(subscription?.items)?subscription.items:[];
+ const priceIds=items.map(item=>String(item?.price?.id||item?.price_id||'')).filter(Boolean);
+ for(const plan of ['weekly','standard','premium']){
+  const configured=String(env?.['PADDLE_'+plan.toUpperCase()+'_PRICE_ID']||'');
+  if(configured&&priceIds.includes(configured))return plan;
+ }
+ const safeFallback=String(fallback||'').toLowerCase();
+ return ['weekly','standard','premium'].includes(safeFallback)?safeFallback:null;
+}
+export function isPaddleEventNewer(incoming,stored){
+ if(!stored)return true;
+ const next=Date.parse(incoming||''),previous=Date.parse(stored||'');
+ return Number.isFinite(next)&&Number.isFinite(previous)&&next>=previous;
+}
 export function paddleSubscriptionRowId(existingId,paddleId){ return String(existingId||paddleId||'')||null; }
 export function planLimits(plan){ return PLAN_LIMITS[String(plan||'free').toLowerCase()] || PLAN_LIMITS.free; }
 export function selectEligiblePaidSubscription(rows,now=Date.now()){
@@ -474,7 +489,7 @@ async function handlePaddleWebhook(request,env){
      const sid=String(d.subscription_id||''),bp=d.billing_period||{},start=bp.starts_at||d.billed_at||occurredAt||new Date().toISOString(),end=bp.ends_at||null;
      const existingSub=sid?await env.KLYPZA_DB.prepare("SELECT id,paddle_event_occurred_at FROM subscriptions WHERE user_id=? AND provider='paddle' AND provider_subscription_id=? ORDER BY updated_at DESC,id DESC LIMIT 1").bind(o.user_id,sid).first():null;
      const subscriptionRowId=paddleSubscriptionRowId(existingSub?.id,sid);
-     const applyEvent=!existingSub?.paddle_event_occurred_at||(!!occurredAt&&Date.parse(occurredAt)>=Date.parse(existingSub.paddle_event_occurred_at));
+     const applyEvent=isPaddleEventNewer(occurredAt,existingSub?.paddle_event_occurred_at);
      const statements=[env.KLYPZA_DB.prepare("UPDATE payment_orders SET status='completed',provider_reference=?,period_start=?,period_end=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND provider='paddle'").bind(String(d.id||''),start,end,oid)];
      if(applyEvent&&subscriptionRowId)statements.push(env.KLYPZA_DB.prepare("UPDATE users SET plan=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(o.plan,o.user_id));
      if(subscriptionRowId)statements.push(env.KLYPZA_DB.prepare("INSERT INTO subscriptions(id,user_id,plan,status,provider,provider_subscription_id,current_period_start,current_period_end,paddle_event_occurred_at) VALUES(?,?,?,'active','paddle',?,?,?,?) ON CONFLICT(id) DO UPDATE SET plan=CASE WHEN subscriptions.paddle_event_occurred_at IS NULL OR (excluded.paddle_event_occurred_at IS NOT NULL AND excluded.paddle_event_occurred_at>=subscriptions.paddle_event_occurred_at) THEN excluded.plan ELSE subscriptions.plan END,status=CASE WHEN subscriptions.paddle_event_occurred_at IS NULL OR (excluded.paddle_event_occurred_at IS NOT NULL AND excluded.paddle_event_occurred_at>=subscriptions.paddle_event_occurred_at) THEN 'active' ELSE subscriptions.status END,provider_subscription_id=COALESCE(excluded.provider_subscription_id,subscriptions.provider_subscription_id),current_period_start=CASE WHEN subscriptions.paddle_event_occurred_at IS NULL OR (excluded.paddle_event_occurred_at IS NOT NULL AND excluded.paddle_event_occurred_at>=subscriptions.paddle_event_occurred_at) THEN COALESCE(excluded.current_period_start,subscriptions.current_period_start) ELSE subscriptions.current_period_start END,current_period_end=CASE WHEN subscriptions.paddle_event_occurred_at IS NULL OR (excluded.paddle_event_occurred_at IS NOT NULL AND excluded.paddle_event_occurred_at>=subscriptions.paddle_event_occurred_at) THEN COALESCE(excluded.current_period_end,subscriptions.current_period_end) ELSE subscriptions.current_period_end END,paddle_event_occurred_at=CASE WHEN subscriptions.paddle_event_occurred_at IS NULL OR (excluded.paddle_event_occurred_at IS NOT NULL AND excluded.paddle_event_occurred_at>=subscriptions.paddle_event_occurred_at) THEN COALESCE(excluded.paddle_event_occurred_at,subscriptions.paddle_event_occurred_at) ELSE subscriptions.paddle_event_occurred_at END,updated_at=CURRENT_TIMESTAMP").bind(subscriptionRowId,o.user_id,o.plan,sid||null,start,end,occurredAt||null));
@@ -485,8 +500,8 @@ async function handlePaddleWebhook(request,env){
    const sid=String(d.id||''),uid=String(c.klypza_user_id||''),plan=String(c.klypza_plan||''),bp=d.current_billing_period||{},sc=d.scheduled_change||{},scheduledAction=String(sc.action||''),scheduledAt=sc.effective_at||null,status=String(d.status||'active').toLowerCase();
    if(sid){
     const old=await env.KLYPZA_DB.prepare("SELECT id,user_id,plan,paddle_event_occurred_at FROM subscriptions WHERE provider='paddle' AND provider_subscription_id=? ORDER BY updated_at DESC,id DESC LIMIT 1").bind(sid).first();
-    const userId=old?.user_id||uid,pl=old?.plan||plan;
-    const applyEvent=!old?.paddle_event_occurred_at||(!!occurredAt&&Date.parse(occurredAt)>=Date.parse(old.paddle_event_occurred_at));
+    const userId=old?.user_id||uid,pl=resolvePaddleSubscriptionPlan(d,env,old?.plan||plan);
+    const applyEvent=isPaddleEventNewer(occurredAt,old?.paddle_event_occurred_at);
     if(userId&&pl&&applyEvent){
      await env.KLYPZA_DB.batch([
       env.KLYPZA_DB.prepare("INSERT INTO subscriptions(id,user_id,plan,status,provider,provider_subscription_id,current_period_start,current_period_end,scheduled_change_action,scheduled_change_effective_at,paddle_event_occurred_at) VALUES(?,?,?,?,'paddle',?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET plan=excluded.plan,status=excluded.status,current_period_start=COALESCE(excluded.current_period_start,subscriptions.current_period_start),current_period_end=COALESCE(excluded.current_period_end,subscriptions.current_period_end),scheduled_change_action=excluded.scheduled_change_action,scheduled_change_effective_at=excluded.scheduled_change_effective_at,paddle_event_occurred_at=COALESCE(excluded.paddle_event_occurred_at,subscriptions.paddle_event_occurred_at),updated_at=CURRENT_TIMESTAMP").bind(paddleSubscriptionRowId(old?.id,sid),userId,pl,status,sid,bp.starts_at||null,bp.ends_at||null,scheduledAction||null,scheduledAt,occurredAt||null),
