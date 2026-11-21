@@ -493,6 +493,10 @@ export function isValidPaddleOrderTransaction(order,transaction,env){
     &&Number(totals.subtotal)===Number(order.amount_minor);
 }
 
+export function canActivatePaddleOrder(order,transaction,env){
+  return Boolean(order&&order.status==='pending'&&String(order.currency||'').toUpperCase()==='USD'&&isValidPaddleOrderTransaction(order,transaction,env));
+}
+
 async function handlePaddleWebhook(request,env){
  if(request.method!=='POST')return json({error:'method_not_allowed'},405,{'allow':'POST'});
  if(!paddleWebhookSecret(env))return json({error:'webhook_not_configured'},503);
@@ -506,7 +510,7 @@ async function handlePaddleWebhook(request,env){
    if(oid){
     const o=await env.KLYPZA_DB.prepare("SELECT id,user_id,plan,amount_minor,currency,status,provider_reference FROM payment_orders WHERE id=? AND provider='paddle'").bind(oid).first();
     if(o){
-     if(o.status!=='pending'||String(o.currency||'').toUpperCase()!=='USD'||!isValidPaddleOrderTransaction(o,d,env)){
+     if(!canActivatePaddleOrder(o,d,env)){
       console.error('PADDLE_TRANSACTION_VALIDATION_FAILED',id,oid);
      }else{
      const sid=String(d.subscription_id||''),bp=d.billing_period||{},start=bp.starts_at||d.billed_at||occurredAt||new Date().toISOString(),end=bp.ends_at||null;
