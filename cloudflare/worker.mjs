@@ -973,6 +973,11 @@ async function cancelPendingDownload(user,env,id){
  await env.KLYPZA_DB.prepare("UPDATE pending_downloads SET status='cancelled' WHERE id=? AND user_id=? AND status IN ('pending','streaming')").bind(id,user.id).run();
 }
 
+export async function claimPendingDownload(env,userId,id,now=Date.now()){
+ const result=await env.KLYPZA_DB.prepare("UPDATE pending_downloads SET status='streaming' WHERE id=? AND user_id=? AND status='pending' AND expires_at>?").bind(id,userId,now).run();
+ return Number(result.meta?.changes||0)===1;
+}
+
 export function finalizeOnStreamCompletion(body,onComplete,onCancel=async()=>{}) {
  const reader=body.getReader();
  let settled=false;
@@ -1469,6 +1474,11 @@ async function handleFile(url, env, request) {
     pending.status='pending';
   }
 
+  // Claim the token before contacting the media provider. Concurrent requests
+  // must not trigger duplicate upstream work for the same download.
+  const claimed=await claimPendingDownload(env,user.id,downloadId);
+  if(!claimed)return json({error:'download_already_started',message:'This download has already started or was cancelled. Process the link again if needed.'},409);
+
   let up;
   let fallbackUrl = src.href;
   try {
@@ -1523,9 +1533,6 @@ async function handleFile(url, env, request) {
     await cancelPendingDownload(user,env,downloadId);
     return json({error:'file_too_large',message:"This file exceeds Klypza's secure transfer limit. No quota was deducted."},413);
   }
-  // Atomically claim the reservation so the same download token cannot stream twice.
-  const claimed=await env.KLYPZA_DB.prepare("UPDATE pending_downloads SET status='streaming' WHERE id=? AND user_id=? AND status='pending' AND expires_at>?").bind(downloadId,user.id,Date.now()).run();
-  if(Number(claimed.meta?.changes||0)!==1){try{await up.body.cancel();}catch{}return json({error:'download_already_started',message:'This download has already started or was cancelled. Process the link again if needed.'},409);}
   // Consume the credit only after the complete response stream reaches EOF.
   const headers = new Headers();
   headers.set('content-type', up.headers.get('content-type') || 'application/octet-stream');
