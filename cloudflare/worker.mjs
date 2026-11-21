@@ -1063,6 +1063,10 @@ async function purgeExpiredOperationalRows(env){
   if(!env.KLYPZA_DB)return;
   const now=new Date().toISOString(),nowMs=Date.now();
   await env.KLYPZA_DB.batch([
+    env.KLYPZA_DB.prepare('CREATE INDEX IF NOT EXISTS idx_email_verification_expiry ON email_verification_tokens(expires_at)'),
+    env.KLYPZA_DB.prepare('CREATE INDEX IF NOT EXISTS idx_password_reset_expiry ON password_reset_tokens(expires_at)'),
+    env.KLYPZA_DB.prepare('CREATE INDEX IF NOT EXISTS idx_pending_downloads_expiry ON pending_downloads(CAST(expires_at AS INTEGER))'),
+    env.KLYPZA_DB.prepare('CREATE INDEX IF NOT EXISTS idx_auth_login_attempts_expiry ON auth_login_attempts(datetime(window_started_at))'),
     env.KLYPZA_DB.prepare('DELETE FROM sessions WHERE expires_at<=?').bind(now),
     env.KLYPZA_DB.prepare('DELETE FROM email_verification_tokens WHERE expires_at<=?').bind(now),
     env.KLYPZA_DB.prepare('DELETE FROM password_reset_tokens WHERE expires_at<=?').bind(now),
