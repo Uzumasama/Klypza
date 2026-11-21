@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveAccountAccess, planLimits, paddleSubscriptionRowId } from '../../cloudflare/worker.mjs';
+import { resolveAccountAccess, planLimits, paddleSubscriptionRowId, selectEligiblePaidSubscription } from '../../cloudflare/worker.mjs';
 
 const NOW = Date.parse('2026-11-21T08:00:00Z');
 const future = new Date(NOW + 3 * 86400000).toISOString();
@@ -77,4 +77,31 @@ test('Paddle webhook races converge on one deterministic subscription row ID', (
   assert.equal(paddleSubscriptionRowId(undefined, paddleId), paddleId);
   assert.equal(paddleSubscriptionRowId('existing-row', paddleId), 'existing-row');
   assert.equal(paddleSubscriptionRowId(null, ''), null);
+});
+
+test('highest eligible paid tier wins even when a higher tier is past due and expired', () => {
+  const rows = [
+    { plan: 'premium', status: 'past_due', current_period_end: past },
+    { plan: 'standard', status: 'active', current_period_end: future },
+    { plan: 'weekly', status: 'active', current_period_end: future },
+  ];
+  const selected = selectEligiblePaidSubscription(rows, NOW);
+  assert.equal(selected.plan, 'standard');
+  assert.equal(resolveAccountAccess(selected, null, NOW).canDownload, true);
+});
+
+test('expired past-due subscription is not eligible for paid access', () => {
+  const selected = selectEligiblePaidSubscription([
+    { plan: 'premium', status: 'past_due', current_period_end: past },
+  ], NOW);
+  assert.equal(selected, null);
+});
+
+test('active Premium remains preferred over active Standard and Weekly', () => {
+  const selected = selectEligiblePaidSubscription([
+    { plan: 'weekly', status: 'active', current_period_end: future },
+    { plan: 'standard', status: 'active', current_period_end: future },
+    { plan: 'premium', status: 'active', current_period_end: future },
+  ], NOW);
+  assert.equal(selected.plan, 'premium');
 });
