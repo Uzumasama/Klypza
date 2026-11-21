@@ -91,16 +91,20 @@ function appPageHtml(path) {
         var user = data && data.user;
         if (!user) throw new Error('Account information is missing from the server response.');
         var quota = data.quota || {};
+        var access = data.access || {};
         var sub = data.subscription || null;
-        var activeSub = sub && String(sub.status || '').toLowerCase() === 'active' ? sub : null;
-        var dailyLimit = Number(quota.dailyLimit);
-        var plan = String((activeSub && activeSub.plan) || data.plan || user.plan || (dailyLimit >= 100 ? 'premium' : dailyLimit >= 60 ? 'standard' : 'free')).toLowerCase();
-        if (!['free','weekly','standard','premium'].includes(plan)) plan = dailyLimit >= 100 ? 'premium' : dailyLimit >= 60 ? 'standard' : 'free';
-        if (!Number.isFinite(dailyLimit) || dailyLimit <= 0) dailyLimit = plan === 'premium' ? 100 : plan === 'standard' ? 60 : 10;
-        var maxBatch = Number(quota.maxBatch) || (plan === 'premium' ? 25 : plan === 'standard' ? 15 : 5);
+        var activeSub = sub && String(sub.status || '').toLowerCase() === 'active' && sub.provider === 'paddle' ? sub : null;
+        var trialActive = !!(data.trial && data.trial.status === 'active' && access.canDownload === true);
+        var canDownload = access.canDownload === true;
+        var dailyLimit = canDownload ? (trialActive ? 25 : Number(quota.dailyLimit)) : 0;
+        var plan = trialActive ? 'weekly' : String((activeSub && activeSub.plan) || data.plan || user.plan || (dailyLimit >= 100 ? 'premium' : dailyLimit >= 60 ? 'standard' : dailyLimit >= 25 ? 'weekly' : 'free')).toLowerCase();
+        if (!['free','weekly','standard','premium'].includes(plan)) plan = dailyLimit >= 100 ? 'premium' : dailyLimit >= 60 ? 'standard' : dailyLimit >= 25 ? 'weekly' : 'free';
+        if (!Number.isFinite(dailyLimit) || dailyLimit < 0) dailyLimit = canDownload ? (plan === 'premium' ? 100 : plan === 'standard' ? 60 : plan === 'weekly' ? 25 : 0) : 0;
+        var maxBatch = canDownload ? (quota.maxBatch !== undefined ? Number(quota.maxBatch) : (plan === 'premium' ? 25 : plan === 'standard' ? 15 : plan === 'weekly' ? 5 : 0)) : 0;
+        if (!Number.isFinite(maxBatch) || maxBatch < 0) maxBatch = 0;
         var usedToday = Number(quota.usedToday);
         if (!Number.isFinite(usedToday) || usedToday < 0) usedToday = 0;
-        var remaining = Number(quota.remaining);
+        var remaining = canDownload ? Number(quota.remaining) : 0;
         if (!Number.isFinite(remaining) || remaining < 0) remaining = Math.max(0, dailyLimit - usedToday);
         var displayName = String(user.name || user.display_name || user.email || 'Klypza user').trim();
         setText('profileName', displayName);
@@ -508,7 +512,6 @@ async function accountRouter(request, env, url) {
   if (path === '/api/billing/checkout' && request.method === 'POST') return createPaddleCheckout(request,env);
   if (path === '/api/billing/portal' && request.method === 'POST') return createPaddlePortalLink(request,env);
   if (path === '/api/plans' && request.method === 'GET') { const billingReady=paddleBillingReady(env); return json({currency:'USD',billingPeriod:'mixed',testPricing:paddleEnvironment(env)==='sandbox',plans:[
-    {id:'trial',name:'7-day free trial',price:0,billingPeriod:'7 days',dailyLimit:10,batchLimit:5,zip:true,quality:'Basic',queue:'Standard',available:true},
     {id:'weekly',name:'Weekly',price:1,billingPeriod:'week',dailyLimit:25,batchLimit:5,zip:true,quality:'Basic',queue:'Standard',available:billingReady&&Boolean(env.PADDLE_WEEKLY_PRICE_ID)},
     {id:'standard',name:'Standard',price:5.99,billingPeriod:'month',dailyLimit:60,batchLimit:15,zip:true,quality:'Expanded',queue:'Faster',available:billingReady&&Boolean(env.PADDLE_STANDARD_PRICE_ID)},
     {id:'premium',name:'Premium',price:9.99,billingPeriod:'month',dailyLimit:100,batchLimit:25,zip:true,quality:'Expanded',queue:'Priority',available:billingReady&&Boolean(env.PADDLE_PREMIUM_PRICE_ID)}
