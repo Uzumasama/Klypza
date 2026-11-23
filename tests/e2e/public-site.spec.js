@@ -36,6 +36,12 @@ test.describe('Klypza public website', () => {
     }
   });
 
+  test('legacy /index.html path redirects to the canonical homepage instead of serving the stale asset', async ({ request }) => {
+    const response = await request.get('/index.html', { maxRedirects: 0 });
+    expect(response.status()).toBe(301);
+    expect(response.headers().location).toBe('https://klypza.web.id/');
+  });
+
   test('homepage contains no third-party advertising scripts or ad placeholders', async ({ page }) => {
     const response = await page.goto('/');
     expect(response).not.toBeNull();
