@@ -164,7 +164,7 @@ test.describe('Klypza public website', () => {
           };
         };
         return {
-          columns: getComputedStyle(card).gridTemplateColumns.trim().split(/\\s+/),
+          columns: getComputedStyle(card).gridTemplateColumns.trim().split(/\s+/),
           menu: get('.dashboard-side-menu'),
           overview: get('#overviewPanel'),
           profile: get('#profilePanel'),
