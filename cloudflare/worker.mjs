@@ -1033,7 +1033,7 @@ export function finalizeOnStreamCompletion(body,onComplete,onCancel=async()=>{})
  });
 }
 
-async function consumePendingDownload(user,env,id){
+export async function consumePendingDownload(user,env,id){
  const p=await env.KLYPZA_DB.prepare('SELECT * FROM pending_downloads WHERE id=? AND user_id=?').bind(id,user.id).first();if(!p||p.status!=='streaming'||Number(p.expires_at)<=Date.now())return false;
  const limits=planLimits(user.plan),day=utcDate(),now=Date.now();
  const batch=await env.KLYPZA_DB.batch([
