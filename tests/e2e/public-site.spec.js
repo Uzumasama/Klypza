@@ -167,7 +167,7 @@ test.describe('Klypza public website', () => {
         };
         return {
           columns: getComputedStyle(element).gridTemplateColumns.trim().split(/\\s+/),
-          card: box('#dashboardCard'),
+          card: (() => { const rect = element.getBoundingClientRect(); return { left: rect.left, top: rect.top, width: rect.width }; })(),
           welcome: box(':scope > .dashboard-welcome'),
           menu: box(':scope > .dashboard-side-menu'),
           overview: box(':scope > #overviewPanel'),
