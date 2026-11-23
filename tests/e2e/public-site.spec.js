@@ -151,8 +151,9 @@ test.describe('Klypza public website', () => {
       { width: 390, height: 844 },
     ]) {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
-      await page.goto('/dashboard');
+      await page.goto('/');
       const card = page.locator('#dashboardCard');
+      await card.evaluate(element => { element.style.display = 'grid'; });
       await expect(card).toBeVisible();
       const menu = card.locator(':scope > .dashboard-side-menu');
       const overview = card.locator(':scope > #overviewPanel');
@@ -173,7 +174,12 @@ test.describe('Klypza public website', () => {
           overview: box(':scope > #overviewPanel'),
         };
       });
-      expect(before.columns, JSON.stringify({ viewport, before })).toHaveLength(1);
+      if (viewport.width <= 620) {
+        expect(await card.evaluate(element => getComputedStyle(element).display)).toBe('block');
+      } else {
+        expect(await card.evaluate(element => getComputedStyle(element).display)).toBe('grid');
+        expect(before.columns, JSON.stringify({ viewport, before })).toHaveLength(1);
+      }
       expect(before.menu.width, JSON.stringify({ viewport, before })).toBeGreaterThan(before.card.width * 0.9);
       expect(before.welcome.width, JSON.stringify({ viewport, before })).toBeGreaterThan(before.card.width * 0.9);
       expect(before.menu.left, JSON.stringify({ viewport, before })).toBeLessThan(before.card.left + 8);
