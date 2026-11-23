@@ -166,7 +166,7 @@ test.describe('Klypza public website', () => {
           return { left: rect.left, top: rect.top, width: rect.width };
         };
         return {
-          columns: getComputedStyle(element).gridTemplateColumns.trim().split(/\\s+/),
+          columns: getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/),
           card: (() => { const rect = element.getBoundingClientRect(); return { left: rect.left, top: rect.top, width: rect.width }; })(),
           welcome: box(':scope > .dashboard-welcome'),
           menu: box(':scope > .dashboard-side-menu'),
@@ -190,7 +190,7 @@ test.describe('Klypza public website', () => {
       const navLayout = await nav.evaluate(element => ({
         width: element.getBoundingClientRect().width,
         menuWidth: element.closest('.dashboard-side-menu').getBoundingClientRect().width,
-        columns: getComputedStyle(element).gridTemplateColumns.trim().split(/\\s+/),
+        columns: getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/),
         items: [...element.querySelectorAll('.profile-tab')].map(item => item.innerText.trim()),
       }));
       expect(navLayout.width, JSON.stringify({ viewport, navLayout })).toBeGreaterThan(navLayout.menuWidth * 0.9);
