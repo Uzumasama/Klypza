@@ -28,7 +28,9 @@ jobs:
         run: node --check cloudflare/worker.mjs
       - name: Validate browser test syntax
         run: node --check tests/e2e/public-site.spec.js
-      - name: Run unit tests, including download credit finalization safeguards
+      - name: Run unit tests, including SQLite download credit transaction checks
+        env:
+          NODE_OPTIONS: --experimental-sqlite
         run: npm run test:unit
       - name: Validate production plan and payment safeguards
         run: |
