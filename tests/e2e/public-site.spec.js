@@ -347,8 +347,8 @@ test.describe('Klypza API smoke and access-control checks', () => {
 
     await page.goto('/login');
     await expect(page.locator('#authName')).toBeHidden();
-    await expect(page.locator('#authEmail')).toBeRequired();
-    await expect(page.locator('#authPassword')).toBeRequired();
+    await expect(page.locator('#authEmail')).toHaveAttribute('required', '');
+    await expect(page.locator('#authPassword')).toHaveAttribute('required', '');
   });
 
   test('successful password reset returns the user to login with a confirmation', async ({ page }) => {

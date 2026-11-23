@@ -28,6 +28,8 @@ jobs:
         run: node --check cloudflare/worker.mjs
       - name: Validate browser test syntax
         run: node --check tests/e2e/public-site.spec.js
+      - name: Run unit tests, including download credit finalization safeguards
+        run: npm run test:unit
       - name: Validate production plan and payment safeguards
         run: |
           node --input-type=module <<'NODE'
