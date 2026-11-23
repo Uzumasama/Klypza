@@ -84,5 +84,25 @@ jobs:
           }
           console.log('Full-width dashboard menu overrides and responsive rules verified.');
           NODE
+      - name: Install browser test dependencies
+        run: npm install --no-save --no-package-lock @playwright/test
+      - name: Install Chromium for dashboard browser test
+        run: npx playwright install --with-deps chromium
+      - name: Start local production-candidate Worker
+        run: |
+          (npx --yes wrangler@4.162.0 dev --local --port 8787 --ip 127.0.0.1 > /tmp/klypza-worker-preview.log 2>&1 & echo $! > /tmp/klypza-worker-preview.pid)
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8787/ > /dev/null; then
+              echo "Local Worker preview is responding."
+              exit 0
+            fi
+            sleep 2
+          done
+          cat /tmp/klypza-worker-preview.log
+          exit 1
+      - name: Run dashboard responsive layout browser test
+        env:
+          BASE_URL: http://127.0.0.1:8787
+        run: npx playwright test -g "dashboard menu is full-width above content on desktop, tablet, and mobile" --project=chromium
       - name: Validate Wrangler production build without deploying
         run: npx --yes wrangler@4.162.0 deploy --dry-run --outdir /tmp/klypza-production-candidate
