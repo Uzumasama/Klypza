@@ -181,7 +181,7 @@ test.describe('Klypza public website', () => {
       }
       expect(before.menu.width, JSON.stringify({ viewport, before })).toBeGreaterThan(before.card.width * 0.9);
       expect(before.welcome.width, JSON.stringify({ viewport, before })).toBeGreaterThan(before.card.width * 0.9);
-      expect(before.menu.left, JSON.stringify({ viewport, before })).toBeLessThan(before.card.left + 8);
+      expect(before.menu.left, JSON.stringify({ viewport, before })).toBe(before.welcome.left);
       expect(before.overview.top, JSON.stringify({ viewport, before })).toBeGreaterThan(before.menu.top);
 
       await menu.locator('#accountMenuToggle').click();
