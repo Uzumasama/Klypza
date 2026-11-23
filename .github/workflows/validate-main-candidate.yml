@@ -1,4 +1,5 @@
 name: Validate Klypza production candidate
+# Dashboard production candidate validation
 
 on:
   push:
