@@ -167,7 +167,7 @@ test.describe('Klypza public website', () => {
         };
         return {
           columns: getComputedStyle(card).gridTemplateColumns.trim().split(/\\s+/),
-          card: measure(':scope'),
+          card: { width: Math.round(card.getBoundingClientRect().width) },
           menu: measure(':scope > .dashboard-side-menu'),
           overview: measure(':scope > #overviewPanel'),
           profile: measure(':scope > #profilePanel'),
