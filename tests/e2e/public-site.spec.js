@@ -141,58 +141,58 @@ test.describe('Klypza public website', () => {
     }
   });
 
-  test('dashboard navigation and content panels keep the intended desktop and responsive layout', async ({ page }) => {
+  test('dashboard menu is full-width above content on desktop, tablet, and mobile', async ({ page }) => {
     for (const viewport of [
-      { width: 1440, height: 1000, desktop: true },
-      { width: 1100, height: 1000, desktop: false },
-      { width: 768, height: 1024, desktop: false },
-      { width: 390, height: 844, desktop: false },
+      { width: 1440, height: 1000 },
+      { width: 1280, height: 900 },
+      { width: 1100, height: 1000 },
+      { width: 959, height: 1600 },
+      { width: 768, height: 1024 },
+      { width: 390, height: 844 },
     ]) {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await page.goto('/dashboard');
-      const layout = await page.locator('#dashboardCard').evaluate(card => {
-        const get = selector => {
-          const element = card.querySelector(selector);
-          if (!element) return null;
-          const style = getComputedStyle(element);
-          const rect = element.getBoundingClientRect();
-          return {
-            gridColumn: style.gridColumn,
-            gridRow: style.gridRow,
-            order: style.order,
-            width: Math.round(rect.width),
-          };
+      const card = page.locator('#dashboardCard');
+      await expect(card).toBeVisible();
+      const menu = card.locator(':scope > .dashboard-side-menu');
+      const overview = card.locator(':scope > #overviewPanel');
+      await expect(menu).toBeVisible();
+      await expect(overview).toBeAttached();
+
+      const before = await card.evaluate((element) => {
+        const box = selector => {
+          const node = element.querySelector(selector);
+          const rect = node.getBoundingClientRect();
+          return { left: rect.left, top: rect.top, width: rect.width };
         };
         return {
-          columns: getComputedStyle(card).gridTemplateColumns.trim().split(/\s+/),
-          menu: get('.dashboard-side-menu'),
-          overview: get('#overviewPanel'),
-          profile: get('#profilePanel'),
-          plans: get('#plansPanel'),
-          width: card.getBoundingClientRect().width,
-          scrollWidth: document.documentElement.scrollWidth,
-          viewportWidth: document.documentElement.clientWidth,
+          columns: getComputedStyle(element).gridTemplateColumns.trim().split(/\\s+/),
+          card: box('#dashboardCard'),
+          welcome: box(':scope > .dashboard-welcome'),
+          menu: box(':scope > .dashboard-side-menu'),
+          overview: box(':scope > #overviewPanel'),
         };
       });
+      expect(before.columns, JSON.stringify({ viewport, before })).toHaveLength(1);
+      expect(before.menu.width, JSON.stringify({ viewport, before })).toBeGreaterThan(before.card.width * 0.9);
+      expect(before.welcome.width, JSON.stringify({ viewport, before })).toBeGreaterThan(before.card.width * 0.9);
+      expect(before.menu.left, JSON.stringify({ viewport, before })).toBeLessThan(before.card.left + 8);
+      expect(before.overview.top, JSON.stringify({ viewport, before })).toBeGreaterThan(before.menu.top);
 
-      expect(layout.menu, JSON.stringify({ viewport, layout })).not.toBeNull();
-      expect(layout.overview, JSON.stringify({ viewport, layout })).not.toBeNull();
-      expect(layout.profile, JSON.stringify({ viewport, layout })).not.toBeNull();
-      expect(layout.plans, JSON.stringify({ viewport, layout })).not.toBeNull();
-      expect(layout.scrollWidth, JSON.stringify({ viewport, layout })).toBeLessThanOrEqual(layout.viewportWidth + 2);
-
-      if (viewport.desktop) {
-        expect(layout.columns, JSON.stringify({ viewport, layout })).toHaveLength(2);
-        expect(layout.menu.gridColumn, JSON.stringify({ viewport, layout })).toBe('2');
-        expect(layout.overview.gridColumn, JSON.stringify({ viewport, layout })).toBe('1');
-        expect(layout.profile.gridColumn, JSON.stringify({ viewport, layout })).toBe('1');
-        expect(layout.plans.gridColumn, JSON.stringify({ viewport, layout })).toBe('1');
-      } else {
-        expect(layout.columns, JSON.stringify({ viewport, layout })).toHaveLength(1);
-        for (const panel of [layout.menu, layout.overview, layout.profile, layout.plans]) {
-          expect(panel.gridColumn, JSON.stringify({ viewport, layout })).toBe('1');
-        }
-      }
+      await menu.locator('#accountMenuToggle').click();
+      const nav = menu.locator('#accountMenuContent');
+      await expect(nav).toBeVisible();
+      const navLayout = await nav.evaluate(element => ({
+        width: element.getBoundingClientRect().width,
+        menuWidth: element.closest('.dashboard-side-menu').getBoundingClientRect().width,
+        columns: getComputedStyle(element).gridTemplateColumns.trim().split(/\\s+/),
+        items: [...element.querySelectorAll('.profile-tab')].map(item => item.innerText.trim()),
+      }));
+      expect(navLayout.width, JSON.stringify({ viewport, navLayout })).toBeGreaterThan(navLayout.menuWidth * 0.9);
+      expect(navLayout.columns, JSON.stringify({ viewport, navLayout })).toHaveLength(viewport.width <= 620 ? 2 : 4);
+      expect(navLayout.items).toEqual(expect.arrayContaining(['Overview', 'My Profile', 'Plans & Upgrade', 'Log out']));
+      const pageWidth = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, viewport: document.documentElement.clientWidth }));
+      expect(pageWidth.scroll, JSON.stringify({ viewport, pageWidth })).toBeLessThanOrEqual(pageWidth.viewport + 2);
     }
   });
 
