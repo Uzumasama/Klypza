@@ -52,5 +52,33 @@ jobs:
           if (source.includes("Paddle.Environment.set('sandbox')")) throw new Error('Paddle.js must use the configured environment.');
           console.log('Production plan, Paddle gating, and existing download-confirmation flow checks passed.');
           NODE
+      - name: Verify production dashboard menu layout overrides legacy sidebar rules
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const source = fs.readFileSync('cloudflare/worker.mjs', 'utf8');
+          const marker = 'Production dashboard menu: full-width navigation above all account panels';
+          const markerAt = source.lastIndexOf(marker);
+          const styleStart = source.lastIndexOf('<style>', markerAt);
+          const styleEnd = source.indexOf('</style>', markerAt);
+          const dashboardMarkup = source.indexOf('id=\\"dashboardCard\\"', styleEnd);
+          if (markerAt < 0 || styleStart < 0 || styleEnd < markerAt || dashboardMarkup < styleEnd) {
+            throw new Error('Production dashboard override is not in the dashboard page stylesheet.');
+          }
+          const css = source.slice(styleStart, styleEnd);
+          const required = [
+            '#dashboardCard{display:grid!important;grid-template-columns:minmax(0,1fr)!important',
+            '#dashboardCard>.dashboard-side-menu{justify-self:stretch!important;align-self:stretch!important;width:100%!important;max-width:none!important',
+            'grid-template-columns:repeat(4,minmax(0,1fr))!important',
+            '@media(max-width:620px)'
+          ];
+          for (const text of required) {
+            if (!css.includes(text)) throw new Error('Missing required dashboard layout override: ' + text);
+          }
+          if (css.includes('width:min(100%,320px)!important')) {
+            throw new Error('Legacy 320px menu width remains in the final override.');
+          }
+          console.log('Full-width dashboard menu overrides and responsive rules verified.');
+          NODE
       - name: Validate Wrangler production build without deploying
         run: npx --yes wrangler@4.162.0 deploy --dry-run --outdir /tmp/klypza-production-candidate
