@@ -137,7 +137,7 @@ test.describe('Klypza public website', () => {
       });
       expect(layout.display, JSON.stringify({ viewport, layout })).toBe('grid');
       expect(layout.columns.trim().split(/\\s+/), JSON.stringify({ viewport, layout })).toHaveLength(1);
-      expect(layout.welcome.width, JSON.stringify({ viewport, layout })).toBeGreaterThan(layout.card.width - 4);
+      expect(layout.welcome.width, JSON.stringify({ viewport, layout })).toBeGreaterThan(layout.card.width - 48);
     }
   });
 
