@@ -141,6 +141,61 @@ test.describe('Klypza public website', () => {
     }
   });
 
+  test('dashboard navigation and content panels keep the intended desktop and responsive layout', async ({ page }) => {
+    for (const viewport of [
+      { width: 1440, height: 1000, desktop: true },
+      { width: 1100, height: 1000, desktop: false },
+      { width: 768, height: 1024, desktop: false },
+      { width: 390, height: 844, desktop: false },
+    ]) {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await page.goto('/dashboard');
+      const layout = await page.locator('#dashboardCard').evaluate(card => {
+        const get = selector => {
+          const element = card.querySelector(selector);
+          if (!element) return null;
+          const style = getComputedStyle(element);
+          const rect = element.getBoundingClientRect();
+          return {
+            gridColumn: style.gridColumn,
+            gridRow: style.gridRow,
+            order: style.order,
+            width: Math.round(rect.width),
+          };
+        };
+        return {
+          columns: getComputedStyle(card).gridTemplateColumns.trim().split(/\\s+/),
+          menu: get('.dashboard-side-menu'),
+          overview: get('#overviewPanel'),
+          profile: get('#profilePanel'),
+          plans: get('#plansPanel'),
+          width: card.getBoundingClientRect().width,
+          scrollWidth: document.documentElement.scrollWidth,
+          viewportWidth: document.documentElement.clientWidth,
+        };
+      });
+
+      expect(layout.menu, JSON.stringify({ viewport, layout })).not.toBeNull();
+      expect(layout.overview, JSON.stringify({ viewport, layout })).not.toBeNull();
+      expect(layout.profile, JSON.stringify({ viewport, layout })).not.toBeNull();
+      expect(layout.plans, JSON.stringify({ viewport, layout })).not.toBeNull();
+      expect(layout.scrollWidth, JSON.stringify({ viewport, layout })).toBeLessThanOrEqual(layout.viewportWidth + 2);
+
+      if (viewport.desktop) {
+        expect(layout.columns, JSON.stringify({ viewport, layout })).toHaveLength(2);
+        expect(layout.menu.gridColumn, JSON.stringify({ viewport, layout })).toBe('2');
+        expect(layout.overview.gridColumn, JSON.stringify({ viewport, layout })).toBe('1');
+        expect(layout.profile.gridColumn, JSON.stringify({ viewport, layout })).toBe('1');
+        expect(layout.plans.gridColumn, JSON.stringify({ viewport, layout })).toBe('1');
+      } else {
+        expect(layout.columns, JSON.stringify({ viewport, layout })).toHaveLength(1);
+        for (const panel of [layout.menu, layout.overview, layout.profile, layout.plans]) {
+          expect(panel.gridColumn, JSON.stringify({ viewport, layout })).toBe('1');
+        }
+      }
+    }
+  });
+
   test('plans page shows only Weekly, Standard and Premium allowances', async ({ page }) => {
     await page.goto('/plans');
     const cards = page.locator('#plansCard .pricing-card:visible');
