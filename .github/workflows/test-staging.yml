@@ -8,11 +8,11 @@ permissions:
 
 jobs:
   staging-tests:
-    if: github.ref == 'refs/heads/design/dashboard-profile-refinement'
+    if: github.ref == 'refs/heads/fix/dashboard-horizontal-navigation'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Check out staging branch
+      - name: Check out dashboard fix candidate
         uses: actions/checkout@v4
       - name: Set up Node.js
         uses: actions/setup-node@v4
