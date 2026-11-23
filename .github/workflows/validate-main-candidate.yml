@@ -49,5 +49,19 @@ jobs:
           if (source.includes("Paddle.Environment.set('sandbox')")) throw new Error('Paddle.js must use the configured environment.');
           console.log('Production plan, Paddle gating, and existing download-confirmation flow checks passed.');
           NODE
+      - name: Verify dashboard CSS is embedded in the dashboard template
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const source = fs.readFileSync('cloudflare/worker.mjs', 'utf8');
+          const marker = source.indexOf('Dashboard navigation fix: keep menu full-width');
+          const dashboardStart = source.indexOf('#dashboardCard{width:min(1280px');
+          const dashboardEnd = source.indexOf('</style>', dashboardStart);
+          const passwordReset = source.indexOf('Choose a new password');
+          if (marker < dashboardStart || marker > dashboardEnd || dashboardEnd < 0 || (passwordReset >= 0 && marker > passwordReset)) {
+            throw new Error('Dashboard navigation CSS is not inside the dashboard page style block.');
+          }
+          console.log('Dashboard navigation CSS is inside the dashboard template.');
+          NODE
       - name: Validate Wrangler production build without deploying
         run: npx --yes wrangler@4.162.0 deploy --dry-run --outdir /tmp/klypza-production-candidate
