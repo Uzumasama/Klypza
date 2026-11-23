@@ -59,12 +59,13 @@ jobs:
           const source = fs.readFileSync('cloudflare/worker.mjs', 'utf8');
           const marker = 'Production dashboard menu: full-width navigation above all account panels';
           const markerAt = source.lastIndexOf(marker);
+          const styleStart = source.lastIndexOf('<style>', markerAt);
           const styleEnd = source.indexOf('</style>', markerAt);
-          const dashboardEnd = source.indexOf('</style>', source.indexOf('#dashboardCard{width:min(1280px'));
-          if (markerAt < 0 || styleEnd < markerAt || markerAt > dashboardEnd) {
-            throw new Error('Production dashboard override is not in the dashboard stylesheet.');
+          const dashboardMarkup = source.indexOf('id=\\"dashboardCard\\"', styleEnd);
+          if (markerAt < 0 || styleStart < 0 || styleEnd < markerAt || dashboardMarkup < styleEnd) {
+            throw new Error('Production dashboard override is not in the dashboard page stylesheet.');
           }
-          const css = source.slice(markerAt, styleEnd);
+          const css = source.slice(styleStart, styleEnd);
           const required = [
             '#dashboardCard{display:grid!important;grid-template-columns:minmax(0,1fr)!important',
             '#dashboardCard>.dashboard-side-menu{justify-self:stretch!important;align-self:stretch!important;width:100%!important;max-width:none!important',
