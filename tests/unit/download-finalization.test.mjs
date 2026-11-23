@@ -10,6 +10,7 @@ function fakeDb({ changes = [1, 1, 1, 1], status = 'streaming', expiresAt = Date
       return {
         bind(...values) {
           return {
+            sql, values,
             async first() {
               statements.push({ type: 'first', sql, values });
               return { id: 'download-1', user_id: 'user-1', batch_id: 'batch-1', status, expires_at: expiresAt };
