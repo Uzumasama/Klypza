@@ -392,7 +392,6 @@ test.describe('Klypza API smoke and access-control checks', () => {
     const session = await request.get('/api/auth/me');
     expect(session.status()).toBe(200);
     expect(await session.json()).toMatchObject({ authenticated: false });
-    expect(await session.json()).toMatchObject({ authenticated: false });
 
     const profile = await request.post('/api/account/profile', {
       data: { name: 'Unauthorized Test' },
@@ -425,7 +424,8 @@ test.describe('Klypza API smoke and access-control checks', () => {
     });
     expect([400, 401]).toContain(response.status());
     const session = await request.get('/api/auth/me');
-    expect(session.status()).toBe(401);
+    expect(session.status()).toBe(200);
+    expect(await session.json()).toMatchObject({ authenticated: false });
   });
 
 });
