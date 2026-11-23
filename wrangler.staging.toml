@@ -1,0 +1,17 @@
+name = "klypza-staging"
+main = "cloudflare/worker.mjs"
+compatibility_date = "2026-11-12"
+account_id = "e279642bc9b3b73795df3317c4179bcf"
+workers_dev = true
+preview_urls = false
+
+[observability]
+enabled = true
+
+[observability.traces]
+enabled = true
+
+[[d1_databases]]
+binding = "KLYPZA_DB"
+database_name = "klypza-qa"
+database_id = "dec06fcf-465a-4438-aa61-478fe73c02a4"
