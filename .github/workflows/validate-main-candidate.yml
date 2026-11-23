@@ -72,7 +72,7 @@ jobs:
             '#dashboardCard{display:none!important;grid-template-columns:minmax(0,1fr)!important',
             'body.klypza-dashboard-route #dashboardCard{display:grid!important',
             'body.klypza-dashboard-route #dashboardCard{display:block!important',
-            '#dashboardCard>.dashboard-side-menu{justify-self:stretch!important;align-self:stretch!important;width:100%!important;max-width:none!important',
+            '#dashboardCard>.dashboard-side-menu{display:block!important;justify-self:stretch!important;align-self:stretch!important;width:100%!important;max-width:none!important',
             'grid-template-columns:repeat(4,minmax(0,1fr))!important',
             '@media(max-width:620px)'
           ];
