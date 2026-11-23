@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - production/klypza-main-reconciliation
+      - fix/production-dashboard-full-width-menu
   pull_request:
     branches:
       - main
