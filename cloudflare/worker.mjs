@@ -1144,7 +1144,8 @@ export default {
     if (url.pathname === '/reset-password' && request.method === 'GET') return resetPasswordPage(url);
     if (url.pathname === '/index.html' && (request.method === 'GET' || request.method === 'HEAD')) return new Response(null,{status:301,headers:securityHeaders({'location':new URL('/',url).toString(),'cache-control':'public,max-age=3600'})});
     if (url.pathname === '/' || ['/login','/register','/dashboard','/plans'].includes(url.pathname)) {
-      const pageUser = url.pathname === '/' ? await getSessionUser(request,env) : null;\n      let pageHtml = appPageHtml(url.pathname, Boolean(pageUser));
+      const pageUser = url.pathname === '/' ? await getSessionUser(request,env) : null;
+      let pageHtml = appPageHtml(url.pathname, Boolean(pageUser));
       return new Response(pageHtml,{headers:securityHeaders({'content-type':'text/html; charset=utf-8','cache-control':'no-cache'})});
     }
     if (url.pathname === '/brand-icon.webp' || url.pathname === '/brand-wordmark.webp' || url.pathname === '/footer-wordmark-white.webp') {
