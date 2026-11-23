@@ -52,6 +52,7 @@ function sqliteD1({ status = 'streaming', expiresAt = Date.now() + 60_000, daily
       return {
         bind(...values) {
           return {
+            sql, values,
             async first() {
               return db.prepare(sql).get(...values) ?? null;
             },
