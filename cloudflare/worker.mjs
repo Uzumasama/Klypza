@@ -1141,6 +1141,7 @@ export default {
     if (url.pathname === '/sw.js' && request.method === 'GET') return new Response("self.addEventListener('install',function(event){event.waitUntil(self.skipWaiting());});\\nself.addEventListener('activate',function(event){event.waitUntil((async function(){await self.registration.unregister();var clients=await self.clients.matchAll({type:'window',includeUncontrolled:true});clients.forEach(function(client){client.navigate(client.url);});})());});\\n",{headers:securityHeaders({'content-type':'application/javascript; charset=utf-8','cache-control':'no-store','service-worker-allowed':'/'})});
     if (url.pathname === '/api/paddle/webhook') return await handlePaddleWebhook(request,env);
     if (url.pathname === '/reset-password' && request.method === 'GET') return resetPasswordPage(url);
+    if (url.pathname === '/index.html' && (request.method === 'GET' || request.method === 'HEAD')) return new Response(null,{status:301,headers:securityHeaders({'location':new URL('/',url).toString(),'cache-control':'public,max-age=3600'})});
     if (url.pathname === '/' || ['/login','/register','/dashboard','/plans'].includes(url.pathname)) {
       let pageHtml = appPageHtml(url.pathname);
       return new Response(pageHtml,{headers:securityHeaders({'content-type':'text/html; charset=utf-8','cache-control':'no-cache'})});
