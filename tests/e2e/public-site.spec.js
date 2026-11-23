@@ -151,9 +151,8 @@ test.describe('Klypza public website', () => {
       { width: 390, height: 844 },
     ]) {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
-      await page.goto('/');
+      await page.goto('/dashboard');
       const card = page.locator('#dashboardCard');
-      await card.evaluate(element => { element.style.display = 'grid'; });
       await expect(card).toBeVisible();
       const menu = card.locator(':scope > .dashboard-side-menu');
       const overview = card.locator(':scope > #overviewPanel');
