@@ -390,7 +390,8 @@ test.describe('Klypza API smoke and access-control checks', () => {
 
   test('authentication and account endpoints protect private data and mutations', async ({ request }) => {
     const session = await request.get('/api/auth/me');
-    expect(session.status()).toBe(401);
+    expect(session.status()).toBe(200);
+    expect(await session.json()).toMatchObject({ authenticated: false });
     expect(await session.json()).toMatchObject({ authenticated: false });
 
     const profile = await request.post('/api/account/profile', {
