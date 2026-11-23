@@ -333,6 +333,38 @@ test.describe('Klypza API smoke and access-control checks', () => {
     }
   });
 
+  test('registration and login forms expose the correct required fields and password toggle', async ({ page }) => {
+    await page.goto('/register');
+    const name = page.locator('#authName');
+    const password = page.locator('#authPassword');
+    await expect(name).toBeVisible();
+    await expect(name).toHaveAttribute('required', '');
+    await expect(password).toHaveAttribute('minlength', '10');
+    await page.locator('#togglePassword').click();
+    await expect(password).toHaveAttribute('type', 'text');
+    await page.locator('#togglePassword').click();
+    await expect(password).toHaveAttribute('type', 'password');
+
+    await page.goto('/login');
+    await expect(page.locator('#authName')).toBeHidden();
+    await expect(page.locator('#authEmail')).toBeRequired();
+    await expect(page.locator('#authPassword')).toBeRequired();
+  });
+
+  test('successful password reset returns the user to login with a confirmation', async ({ page }) => {
+    await page.route('**/api/auth/reset-password', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: true, message: 'Password updated. Please log in with your new password.' }),
+    }));
+    await page.goto('/reset-password?token=E2E_TEST_TOKEN_123456789012345678901234567890123456');
+    await page.locator('#p').fill('NewSecurePassword123!');
+    await page.locator('#c').fill('NewSecurePassword123!');
+    await page.locator('#form button[type="submit"]').click();
+    await page.waitForURL('**/login?reset=success');
+    await expect(page.locator('#authMessage')).toContainText('password has been updated');
+  });
+
   test('registration rejects invalid name, email, and password without creating accounts', async ({ request }) => {
     const validEmail = 'klypza-e2e-invalid@example.invalid';
     const longPassword = 'ThisIsAnInvalidTestPassword123!';
