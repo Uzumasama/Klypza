@@ -141,35 +141,37 @@ test.describe('Klypza public website', () => {
     }
   });
 
-  test('dashboard navigation and content panels keep the intended desktop and responsive layout', async ({ page }) => {
+  test('dashboard navigation stays horizontal and full-width on desktop, tablet, and mobile', async ({ page }) => {
     for (const viewport of [
-      { width: 1440, height: 1000, desktop: true },
-      { width: 1100, height: 1000, desktop: false },
-      { width: 768, height: 1024, desktop: false },
-      { width: 390, height: 844, desktop: false },
+      { width: 1440, height: 1000 },
+      { width: 1280, height: 900 },
+      { width: 1100, height: 1000 },
+      { width: 959, height: 1600 },
+      { width: 768, height: 1024 },
+      { width: 390, height: 844 },
     ]) {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await page.goto('/dashboard');
       const layout = await page.locator('#dashboardCard').evaluate(card => {
-        const get = selector => {
+        const measure = selector => {
           const element = card.querySelector(selector);
           if (!element) return null;
-          const style = getComputedStyle(element);
           const rect = element.getBoundingClientRect();
+          const style = getComputedStyle(element);
           return {
-            gridColumn: style.gridColumn,
-            gridRow: style.gridRow,
-            order: style.order,
+            left: Math.round(rect.left),
+            top: Math.round(rect.top),
             width: Math.round(rect.width),
+            gridColumn: style.gridColumn,
           };
         };
         return {
-          columns: getComputedStyle(card).gridTemplateColumns.trim().split(/\s+/),
-          menu: get('.dashboard-side-menu'),
-          overview: get('#overviewPanel'),
-          profile: get('#profilePanel'),
-          plans: get('#plansPanel'),
-          width: card.getBoundingClientRect().width,
+          columns: getComputedStyle(card).gridTemplateColumns.trim().split(/\\s+/),
+          card: measure(':scope'),
+          menu: measure(':scope > .dashboard-side-menu'),
+          overview: measure(':scope > #overviewPanel'),
+          profile: measure(':scope > #profilePanel'),
+          plans: measure(':scope > #plansPanel'),
           scrollWidth: document.documentElement.scrollWidth,
           viewportWidth: document.documentElement.clientWidth,
         };
@@ -179,20 +181,10 @@ test.describe('Klypza public website', () => {
       expect(layout.overview, JSON.stringify({ viewport, layout })).not.toBeNull();
       expect(layout.profile, JSON.stringify({ viewport, layout })).not.toBeNull();
       expect(layout.plans, JSON.stringify({ viewport, layout })).not.toBeNull();
+      expect(layout.columns, JSON.stringify({ viewport, layout })).toHaveLength(1);
+      expect(layout.menu.width, JSON.stringify({ viewport, layout })).toBeGreaterThan(layout.card.width - 48);
+      expect(layout.overview.top, JSON.stringify({ viewport, layout })).toBeGreaterThan(layout.menu.top);
       expect(layout.scrollWidth, JSON.stringify({ viewport, layout })).toBeLessThanOrEqual(layout.viewportWidth + 2);
-
-      if (viewport.desktop) {
-        expect(layout.columns, JSON.stringify({ viewport, layout })).toHaveLength(2);
-        expect(layout.menu.gridColumn, JSON.stringify({ viewport, layout })).toBe('2');
-        expect(layout.overview.gridColumn, JSON.stringify({ viewport, layout })).toBe('1');
-        expect(layout.profile.gridColumn, JSON.stringify({ viewport, layout })).toBe('1');
-        expect(layout.plans.gridColumn, JSON.stringify({ viewport, layout })).toBe('1');
-      } else {
-        expect(layout.columns, JSON.stringify({ viewport, layout })).toHaveLength(1);
-        for (const panel of [layout.menu, layout.overview, layout.profile, layout.plans]) {
-          expect(panel.gridColumn, JSON.stringify({ viewport, layout })).toBe('1');
-        }
-      }
     }
   });
 
