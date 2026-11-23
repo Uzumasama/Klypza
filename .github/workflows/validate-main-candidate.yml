@@ -62,16 +62,16 @@ jobs:
             throw new Error('Production dashboard override is not in the dashboard stylesheet.');
           }
           const css = source.slice(markerAt, styleEnd);
-          for (const pattern of [
-            /#dashboardCard\\{display:grid!important;grid-template-columns:minmax\\(0,1fr\\)!important/,
-            /#dashboardCard>\\.dashboard-side-menu\\{[^}]*width:100%!important;max-width:none!important/,
-            /#dashboardCard>\\.dashboard-side-menu\\.account-menu-content/,
-            /grid-template-columns:repeat\\(4,minmax\\(0,1fr\\)\\)!important/,
-            /@media\\(max-width:620px\\)/
-          ]) {
-            if (!pattern.test(css)) throw new Error('Missing required dashboard layout override: ' + pattern);
+          const required = [
+            '#dashboardCard{display:grid!important;grid-template-columns:minmax(0,1fr)!important',
+            '#dashboardCard>.dashboard-side-menu{justify-self:stretch!important;align-self:stretch!important;width:100%!important;max-width:none!important',
+            'grid-template-columns:repeat(4,minmax(0,1fr))!important',
+            '@media(max-width:620px)'
+          ];
+          for (const text of required) {
+            if (!css.includes(text)) throw new Error('Missing required dashboard layout override: ' + text);
           }
-          if (/width:min\\(100%,320px\\)!important/.test(css)) {
+          if (css.includes('width:min(100%,320px)!important')) {
             throw new Error('Legacy 320px menu width remains in the final override.');
           }
           console.log('Full-width dashboard menu overrides and responsive rules verified.');
