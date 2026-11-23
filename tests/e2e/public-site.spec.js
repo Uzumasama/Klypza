@@ -135,8 +135,12 @@ test.describe('Klypza public website', () => {
           overviewGridColumn: getComputedStyle(overview).gridColumn,
         };
       });
-      expect(layout.display, JSON.stringify({ viewport, layout })).toBe('grid');
-      expect(layout.columns.trim().split(/\s+/), JSON.stringify({ viewport, layout })).toHaveLength(1);
+      if (viewport.width <= 620) {
+        expect(layout.display, JSON.stringify({ viewport, layout })).toBe('block');
+      } else {
+        expect(layout.display, JSON.stringify({ viewport, layout })).toBe('grid');
+        expect(layout.columns.trim().split(/\s+/), JSON.stringify({ viewport, layout })).toHaveLength(1);
+      }
       expect(layout.welcome.width, JSON.stringify({ viewport, layout })).toBeGreaterThan(layout.card.width * 0.9);
     }
   });
@@ -154,6 +158,18 @@ test.describe('Klypza public website', () => {
       await page.goto('/dashboard');
       const card = page.locator('#dashboardCard');
       await expect(card).toBeVisible();
+      const legalNote = card.locator('#video-tool > p.legal');
+      await expect(legalNote).toHaveText('Only save videos you own or have permission to download. Copyright remains with the original creator, and each platform’s terms apply.');
+      const legalStyle = await legalNote.evaluate(element => {
+        const style = getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        const parent = element.parentElement.getBoundingClientRect();
+        return { textAlign: style.textAlign, fontSize: style.fontSize, maxWidth: style.maxWidth, width: rect.width, parentWidth: parent.width, left: rect.left, parentLeft: parent.left };
+      });
+      expect(legalStyle.textAlign, JSON.stringify({ viewport, legalStyle })).toBe('center');
+      expect(parseFloat(legalStyle.fontSize), JSON.stringify({ viewport, legalStyle })).toBeLessThanOrEqual(12);
+      expect(legalStyle.width, JSON.stringify({ viewport, legalStyle })).toBeLessThanOrEqual(560);
+      expect(Math.abs((legalStyle.left + legalStyle.width / 2) - (legalStyle.parentLeft + legalStyle.parentWidth / 2)), JSON.stringify({ viewport, legalStyle })).toBeLessThanOrEqual(2);
       const menu = card.locator(':scope > .dashboard-side-menu');
       const overview = card.locator(':scope > #overviewPanel');
       await expect(menu).toBeVisible();
