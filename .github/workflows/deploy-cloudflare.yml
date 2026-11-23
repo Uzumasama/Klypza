@@ -3,7 +3,10 @@ name: Deploy Klypza to Cloudflare Workers
 on:
   push:
     branches: [main]
-    paths-ignore: ["**/*.md"]
+    paths:
+      - "cloudflare/**"
+      - "public/**"
+      - "wrangler.toml"
   workflow_dispatch:
 
 permissions:
